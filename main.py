@@ -93,21 +93,26 @@ class App:
     def check_config_reload(self):
         """Periodically checks if the config file was modified and updates the App."""
         try:
-            # Re-read config from disk to catch settings_ui updates
             import json
             with open(config_manager.config_path, "r", encoding="utf-8") as f:
                 new_settings = json.load(f)
             
-            # Check if API key changed
-            if new_settings.get("api_key") != config_manager.get("api_key"):
-                config_manager.set("api_key", new_settings.get("api_key"))
-                self.api.client.api_key = config_manager.get("api_key")
-                
-            # Check if Hotkey changed
+            # Reload all settings that can change at runtime
+            for key in ["api_key", "translate_to_layout", "dictation_language",
+                        "deepgram_api_key", "notion_api_key", "notion_database_id",
+                        "enable_notion", "notion_trigger_word"]:
+                new_val = new_settings.get(key)
+                if new_val != config_manager.get(key):
+                    config_manager.settings[key] = new_val
+
+            # Update Groq client if API key changed
+            if new_settings.get("api_key") != self.api.client.api_key:
+                self.api.client.api_key = new_settings.get("api_key", "")
+
+            # Restart hotkey listener if hotkey changed
             new_hotkey = new_settings.get("hotkey")
-            if new_hotkey != config_manager.get("hotkey"):
-                config_manager.set("hotkey", new_hotkey)
-                # Restart hotkey listener
+            if new_hotkey and new_hotkey != config_manager.get("hotkey"):
+                config_manager.settings["hotkey"] = new_hotkey
                 self.hotkey.stop()
                 self.hotkey_thread.join()
                 self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
