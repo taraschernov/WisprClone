@@ -45,11 +45,9 @@ class App:
 
     def on_hotkey_press(self):
         print("[App] Hotkey pressed. Starting recording...")
-        if config_manager.get("translate_to_layout"):
-            self.current_language = self.get_current_keyboard_language()
-            print(f"[App] Captured active layout language: {self.current_language}")
-        else:
-            self.current_language = None
+        # Always detect layout for Deepgram language hint
+        self.current_language = self.get_current_keyboard_language()
+        print(f"[App] Captured active layout language: {self.current_language}")
             
         self.tray.set_recording(True)
         self.audio.start_recording()

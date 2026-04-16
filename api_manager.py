@@ -14,17 +14,35 @@ class APIManager:
     def __init__(self):
         self.client = Groq(api_key=get_api_key())
 
-    def transcribe_audio(self, audio_filepath):
+    def transcribe_audio(self, audio_filepath, target_language=None):
         """Sends the audio file to Deepgram or fallback to Groq Whisper."""
         print("[API] Transcribing audio...")
         deepgram_api_key = config_manager.get("deepgram_api_key")
         
         if deepgram_api_key:
-            # Use Deepgram
+            # Map layout language to Deepgram language code
+            lang_map = {
+                "Russian": "ru",
+                "English": "en",
+                "English (UK)": "en",
+                "Ukrainian": "uk",
+                "German": "de",
+                "French": "fr",
+                "Spanish": "es",
+            }
+            lang_code = lang_map.get(target_language, "")
+            
+            # Build Deepgram URL
+            url = "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&punctuate=true"
+            if lang_code:
+                url += f"&language={lang_code}"
+            else:
+                url += "&detect_language=true"
+            
             import requests
             with open(audio_filepath, "rb") as file:
                 response = requests.post(
-                    "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&detect_language=true",
+                    url,
                     headers={
                         "Authorization": f"Token {deepgram_api_key}",
                         "Content-Type": "audio/wav"
@@ -56,7 +74,7 @@ class APIManager:
 
         # Dynamic prompt construction
         prompt_instruction = SYSTEM_PROMPT
-        if target_language and "Unknown" not in target_language:
+        if target_language and "Unknown" not in target_language and config_manager.get("translate_to_layout"):
             prompt_instruction += f"\nCRITICAL INSTRUCTION: The user's active keyboard layout is {target_language}. You MUST translate the transcription into {target_language} with perfect grammar. If it is already in {target_language}, just fix its grammar."
 
         response = self.client.chat.completions.create(
@@ -76,7 +94,7 @@ class APIManager:
         is_notion_note = False
         try:
             t1 = time.time()
-            transcription = self.transcribe_audio(audio_filepath)
+            transcription = self.transcribe_audio(audio_filepath, target_language=target_language)
             t2 = time.time()
             print(f"[API] Transcription ({t2-t1:.2f}s): {transcription}")
             if not transcription.strip():
