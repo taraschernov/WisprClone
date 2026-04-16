@@ -6,6 +6,7 @@ from config import (get_api_key, WHISPER_MODEL, LLM_MODEL, SYSTEM_PROMPT,
                     NOTION_CATEGORIZATION_PROMPT, get_notion_api_key,
                     get_notion_database_id, get_enable_notion,
                     get_notion_trigger_word)
+from config_manager import config_manager
 import string
 import re
 
@@ -14,15 +15,36 @@ class APIManager:
         self.client = Groq(api_key=get_api_key())
 
     def transcribe_audio(self, audio_filepath):
-        """Sends the audio file to Groq Whisper model."""
+        """Sends the audio file to Deepgram or fallback to Groq Whisper."""
         print("[API] Transcribing audio...")
+        deepgram_api_key = config_manager.get("deepgram_api_key")
+        
+        if deepgram_api_key:
+            # Use Deepgram
+            import requests
+            with open(audio_filepath, "rb") as file:
+                response = requests.post(
+                    "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&detect_language=true",
+                    headers={
+                        "Authorization": f"Token {deepgram_api_key}",
+                        "Content-Type": "audio/wav"
+                    },
+                    data=file
+                )
+            try:
+                data = response.json()
+                transcript = data["results"]["channels"][0]["alternatives"][0]["transcript"]
+                return transcript
+            except Exception as e:
+                print(f"[API] Deepgram parsing error: {e}. Falling back to Groq...")
+
+        # Fallback to Groq Whisper
         with open(audio_filepath, "rb") as file:
             transcription = self.client.audio.transcriptions.create(
                 file=(os.path.basename(audio_filepath), file.read()),
                 model=WHISPER_MODEL,
                 response_format="text"
             )
-        # return as string
         return str(transcription)
 
     def refine_text(self, text, target_language=None):
