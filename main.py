@@ -99,9 +99,13 @@ class App:
                 new_settings = json.load(f)
             
             # Reload all settings that can change at runtime
-            for key in ["api_key", "translate_to_layout", "dictation_language",
-                        "deepgram_api_key", "notion_api_key", "notion_database_id",
-                        "enable_notion", "notion_trigger_word"]:
+            runtime_keys = [
+                "api_key", "translate_to_layout", "dictation_language",
+                "deepgram_api_key", "notion_api_key", "notion_database_id",
+                "enable_notion", "notion_trigger_word", "current_mode", 
+                "presets", "custom_system_prompt"
+            ]
+            for key in runtime_keys:
                 new_val = new_settings.get(key)
                 if new_val != config_manager.get(key):
                     config_manager.settings[key] = new_val

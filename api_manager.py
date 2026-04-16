@@ -63,33 +63,36 @@ class APIManager:
         return str(transcription)
 
     def refine_text(self, text, target_language=None):
-        """Sends transcribed text to Groq LLM for refinement/translation."""
+        """Sends transcribed text to Groq LLM for refinement/translation using presets."""
         if not text.strip():
             return ""
             
-        print(f"[API] Refining text... (Target Language: {target_language})")
-
-        from config import BASE_CLEANER_PROMPT, CLEAN_MODE_INSTRUCTION, TRANSLATE_MODE_INSTRUCTION
+        from config import get_system_prompt, get_presets, get_current_mode, LLM_MODEL
+        
+        selected_mode = get_current_mode()
+        print(f"[API] Refining text... (Mode: {selected_mode})")
+        
+        system_prompt = get_system_prompt()
+        presets = get_presets()
+        mode_instruction = presets.get(selected_mode, "")
         
         is_translate_on = config_manager.get("translate_to_layout", False)
         dictation_lang = config_manager.get("dictation_language", "Russian")
         
-        # Determine mode
+        # Add translation layer if triggered
         if is_translate_on and target_language and target_language != dictation_lang and "Unknown" not in target_language:
-            mode_instruction = TRANSLATE_MODE_INSTRUCTION.format(target_language=target_language)
-        else:
-            mode_instruction = CLEAN_MODE_INSTRUCTION
+            mode_instruction += f"\n\nCRITICAL: You MUST also translate the entire text into {target_language} while maintaining the rules of the selected mode."
 
-        prompt_instruction = BASE_CLEANER_PROMPT.format(mode_instruction=mode_instruction)
+        full_system_content = f"{system_prompt}\n\n### Selected Mode: {selected_mode}\n{mode_instruction}"
 
         response = self.client.chat.completions.create(
             messages=[
-                {"role": "system", "content": prompt_instruction},
+                {"role": "system", "content": full_system_content},
                 {"role": "user", "content": f"<transcription>\n{text}\n</transcription>"}
             ],
             model=LLM_MODEL,
-            max_tokens=1024,
-            temperature=0.1 # Lowered temperature for more rigid output
+            max_tokens=2048,
+            temperature=0.3
         )
         return response.choices[0].message.content.strip()
 
