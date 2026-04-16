@@ -147,10 +147,41 @@ class App:
         
         sys.exit(0)
 
+def is_already_running():
+    import tempfile
+    lock_file = os.path.join(tempfile.gettempdir(), "wispr_clone.lock")
+    try:
+        # Check if file exists and we can open it for writing EXCLUSIVELY
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+            except OSError:
+                return True # Cannot remove, likely held by another instance
+        open(lock_file, 'w').close()
+        return False
+    except OSError:
+        return True
+
 if __name__ == "__main__":
+    if is_already_running():
+        print("[App] Already running. Exiting.")
+        sys.exit(0)
+        
     if "--settings" in sys.argv:
         from settings_ui import open_settings
         open_settings()
     else:
         app = App()
-        app.run()
+        try:
+            app.run()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            app.on_exit()
+            # Try to release lock
+            import tempfile
+            lock_file = os.path.join(tempfile.gettempdir(), "wispr_clone.lock")
+            try:
+                os.remove(lock_file)
+            except:
+                pass

@@ -10,18 +10,22 @@ class SettingsApp(ctk.CTk):
         super().__init__()
 
         self.title("Настройки WisprClone")
-        self.geometry("450x740")
+        self.geometry("460x600")
         self.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
+        # Scrollable Frame
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=430, height=580, fg_color="transparent")
+        self.scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
         # Title
-        self.title_label = ctk.CTkLabel(self, text="Настройки WisprClone", font=ctk.CTkFont(size=20, weight="bold"))
-        self.title_label.pack(pady=(15, 5))
+        self.title_label = ctk.CTkLabel(self.scroll_frame, text="Настройки WisprClone", font=ctk.CTkFont(size=20, weight="bold"))
+        self.title_label.pack(pady=(5, 5))
 
         # Instructions Frame
-        self.inst_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.inst_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         self.inst_frame.pack(fill="x", padx=20, pady=5)
 
         self.step1 = ctk.CTkLabel(self.inst_frame, text="1. Получите бесплатный API ключ:", anchor="w")
@@ -35,7 +39,7 @@ class SettingsApp(ctk.CTk):
         self.step2.pack(fill="x", pady=(10, 0))
 
         # Groq API Key Input
-        self.api_entry = ctk.CTkEntry(self, placeholder_text="gsk_xxxxxxxxxxxxxxxxxxxxxx", show="*", width=410, font=ctk.CTkFont(size=14))
+        self.api_entry = ctk.CTkEntry(self.scroll_frame, placeholder_text="gsk_xxxxxxxxxxxxxxxxxxxxxx", show="*", width=380, font=ctk.CTkFont(size=14))
         self.api_entry.pack(padx=20, pady=5)
         self.api_entry.insert(0, config_manager.get("api_key") or "")
 
@@ -43,81 +47,81 @@ class SettingsApp(ctk.CTk):
         self.step3.pack(fill="x", pady=(10, 0))
 
         # Deepgram API Key Input
-        self.deepgram_entry = ctk.CTkEntry(self, placeholder_text="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", show="*", width=410, font=ctk.CTkFont(size=14))
+        self.deepgram_entry = ctk.CTkEntry(self.scroll_frame, placeholder_text="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", show="*", width=380, font=ctk.CTkFont(size=14))
         self.deepgram_entry.pack(padx=20, pady=5)
         self.deepgram_entry.insert(0, config_manager.get("deepgram_api_key") or "")
 
         # Notion Integration Section
         self.enable_notion_var = ctk.BooleanVar(value=config_manager.get("enable_notion"))
-        self.notion_checkbox = ctk.CTkCheckBox(self, text="Включить интеграцию с Notion", variable=self.enable_notion_var, font=ctk.CTkFont(size=14, weight="bold"))
+        self.notion_checkbox = ctk.CTkCheckBox(self.scroll_frame, text="Включить интеграцию с Notion", variable=self.enable_notion_var, font=ctk.CTkFont(size=14, weight="bold"))
         self.notion_checkbox.pack(anchor="w", padx=20, pady=(15, 0))
 
-        self.notion_link = ctk.CTkLabel(self, text="➡️ Инструкция: Как получить ключи Notion", text_color="#1f6aa5", cursor="hand2", font=ctk.CTkFont(underline=True))
+        self.notion_link = ctk.CTkLabel(self.scroll_frame, text="➡️ Инструкция: Как получить ключи Notion", text_color="#1f6aa5", cursor="hand2", font=ctk.CTkFont(underline=True))
         self.notion_link.pack(fill="x", padx=20, pady=2)
         self.notion_link.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/taraschernov/WisprClone?tab=readme-ov-file#for-notion-integration-optional"))
 
         # Notion API Key Input
-        self.notion_api_label = ctk.CTkLabel(self, text="Notion API Key (Internal Integration Secret):", anchor="w", font=ctk.CTkFont(size=12))
+        self.notion_api_label = ctk.CTkLabel(self.scroll_frame, text="Notion API Key (Internal Integration Secret):", anchor="w", font=ctk.CTkFont(size=12))
         self.notion_api_label.pack(fill="x", padx=20, pady=(5, 0))
-        self.notion_api_entry = ctk.CTkEntry(self, placeholder_text="secret_xxxxxxxxxxxxxxxxxx", show="*", width=410, font=ctk.CTkFont(size=14))
+        self.notion_api_entry = ctk.CTkEntry(self.scroll_frame, placeholder_text="secret_xxxxxxxxxxxxxxxxxx", show="*", width=380, font=ctk.CTkFont(size=14))
         self.notion_api_entry.pack(padx=20, pady=(0, 5))
         self.notion_api_entry.insert(0, config_manager.get("notion_api_key") or "")
 
         # Notion Database ID Input
-        self.notion_db_label = ctk.CTkLabel(self, text="Notion Database ID:", anchor="w", font=ctk.CTkFont(size=12))
+        self.notion_db_label = ctk.CTkLabel(self.scroll_frame, text="Notion Database ID:", anchor="w", font=ctk.CTkFont(size=12))
         self.notion_db_label.pack(fill="x", padx=20, pady=(5, 0))
-        self.notion_db_entry = ctk.CTkEntry(self, placeholder_text="xxxxxxxxxxxxxxxxxxxxxxxx", width=410, font=ctk.CTkFont(size=14))
+        self.notion_db_entry = ctk.CTkEntry(self.scroll_frame, placeholder_text="xxxxxxxxxxxxxxxxxxxxxxxx", width=380, font=ctk.CTkFont(size=14))
         self.notion_db_entry.pack(padx=20, pady=(0, 5))
         self.notion_db_entry.insert(0, config_manager.get("notion_database_id") or "")
 
         # Notion Trigger Word Input
-        self.notion_trigger_label = ctk.CTkLabel(self, text="Слово-триггер (оставьте пустым для отправки всех заметок):", anchor="w", font=ctk.CTkFont(size=12))
+        self.notion_trigger_label = ctk.CTkLabel(self.scroll_frame, text="Слово-триггер (оставьте пустым для отправки всех заметок):", anchor="w", font=ctk.CTkFont(size=12))
         self.notion_trigger_label.pack(fill="x", padx=20, pady=(5, 0))
-        self.notion_trigger_entry = ctk.CTkEntry(self, placeholder_text="например: заметка", width=410, font=ctk.CTkFont(size=14))
+        self.notion_trigger_entry = ctk.CTkEntry(self.scroll_frame, placeholder_text="например: заметка", width=380, font=ctk.CTkFont(size=14))
         self.notion_trigger_entry.pack(padx=20, pady=(0, 5))
         self.notion_trigger_entry.insert(0, config_manager.get("notion_trigger_word") or "")
 
         # Hotkey Input
-        self.hotkey_label = ctk.CTkLabel(self, text="Комбинация клавиш (удерживать для записи):", anchor="w", font=ctk.CTkFont(size=14))
+        self.hotkey_label = ctk.CTkLabel(self.scroll_frame, text="Комбинация клавиш (удерживать для записи):", anchor="w", font=ctk.CTkFont(size=14))
         self.hotkey_label.pack(fill="x", padx=20, pady=(15, 0))
 
         self.hotkey_var = ctk.StringVar(value=config_manager.get("hotkey") or "ctrl+shift")
         self.hotkey_dropdown = ctk.CTkOptionMenu(
-            self, 
+            self.scroll_frame, 
             variable=self.hotkey_var,
             font=ctk.CTkFont(size=14),
-            width=410,
+            width=380,
             values=["ctrl+shift", "alt+shift", "f8", "f9", "right ctrl", "ctrl+alt"]
         )
         self.hotkey_dropdown.pack(padx=20, pady=5)
 
         # Dictation Language
-        self.lang_label = ctk.CTkLabel(self, text="Язык диктовки (на каком языке вы говорите):", anchor="w", font=ctk.CTkFont(size=14))
+        self.lang_label = ctk.CTkLabel(self.scroll_frame, text="Язык диктовки (на каком языке вы говорите):", anchor="w", font=ctk.CTkFont(size=14))
         self.lang_label.pack(fill="x", padx=20, pady=(15, 0))
 
         self.lang_var = ctk.StringVar(value=config_manager.get("dictation_language") or "Russian")
         self.lang_dropdown = ctk.CTkOptionMenu(
-            self,
+            self.scroll_frame,
             variable=self.lang_var,
             font=ctk.CTkFont(size=14),
-            width=410,
+            width=380,
             values=["Russian", "English", "Ukrainian", "German", "French", "Spanish"]
         )
         self.lang_dropdown.pack(padx=20, pady=5)
 
         # Translation Checkbox
         self.translate_var = ctk.BooleanVar(value=config_manager.get("translate_to_layout"))
-        self.translate_checkbox = ctk.CTkCheckBox(self, text="Переводить на язык активной раскладки (замедляет работу)", variable=self.translate_var)
-        self.translate_checkbox.pack(anchor="w", padx=20, pady=(5, 0))
+        self.translate_checkbox = ctk.CTkCheckBox(self.scroll_frame, text="Переводить на язык активной раскладки (замедляет работу)", variable=self.translate_var)
+        self.translate_checkbox.pack(anchor="w", padx=20, pady=(15, 0))
 
         # Autostart Checkbox
         self.autostart_var = ctk.BooleanVar(value=config_manager.get("autostart"))
-        self.autostart_checkbox = ctk.CTkCheckBox(self, text="Запускать вместе с Windows", variable=self.autostart_var)
+        self.autostart_checkbox = ctk.CTkCheckBox(self.scroll_frame, text="Запускать вместе с Windows", variable=self.autostart_var)
         self.autostart_checkbox.pack(anchor="w", padx=20, pady=(15, 10))
 
         # Save Button
-        self.save_btn = ctk.CTkButton(self, text="Сохранить и Закрыть", command=self.save_and_close, font=ctk.CTkFont(weight="bold"))
-        self.save_btn.pack(pady=10)
+        self.save_btn = ctk.CTkButton(self.scroll_frame, text="Сохранить и Закрыть", command=self.save_and_close, font=ctk.CTkFont(weight="bold"))
+        self.save_btn.pack(pady=20)
 
     def set_autostart(self, enable):
         """Creates or removes windows registry key for autostart"""
