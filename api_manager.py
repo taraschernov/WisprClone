@@ -66,13 +66,15 @@ class APIManager:
             
             if enable_notion and trigger_word:
                 trigger_lower = trigger_word.lower()
-                text_lower = refined.lower()
-                import string, re
-                cleaned_text = text_lower.translate(str.maketrans('', '', string.punctuation))
                 
-                if trigger_lower in cleaned_text:
+                import string, re
+                cleaned_transcription = transcription.lower().translate(str.maketrans('', '', string.punctuation))
+                
+                # Check if it was spoken in the raw transcription
+                if trigger_lower in cleaned_transcription:
                     is_notion_note = True
-                    # Remove the trigger word at start or end
+                    
+                    # Remove the trigger word at start or end of the *refined* text just in case the LLM left it in
                     pattern_start = re.compile(r'^[\s\W]*' + re.escape(trigger_word) + r'[\s\W]*', re.IGNORECASE)
                     pattern_end = re.compile(r'[\s\W]*' + re.escape(trigger_word) + r'[\s\W]*$', re.IGNORECASE)
                     
