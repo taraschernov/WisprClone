@@ -19,7 +19,8 @@ class ConfigManager:
             "autostart": False,
             "notion_api_key": "",
             "notion_database_id": "",
-            "translate_to_layout": True,
+            "translate_to_layout": False,
+            "dictation_language": "Russian",
             "enable_notion": True,
             "notion_trigger_word": "заметка",
             "deepgram_api_key": ""

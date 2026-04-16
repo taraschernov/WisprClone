@@ -91,10 +91,24 @@ class SettingsApp(ctk.CTk):
         )
         self.hotkey_dropdown.pack(padx=20, pady=5)
 
+        # Dictation Language
+        self.lang_label = ctk.CTkLabel(self, text="Язык диктовки (на каком языке вы говорите):", anchor="w", font=ctk.CTkFont(size=14))
+        self.lang_label.pack(fill="x", padx=20, pady=(15, 0))
+
+        self.lang_var = ctk.StringVar(value=config_manager.get("dictation_language") or "Russian")
+        self.lang_dropdown = ctk.CTkOptionMenu(
+            self,
+            variable=self.lang_var,
+            font=ctk.CTkFont(size=14),
+            width=410,
+            values=["Russian", "English", "Ukrainian", "German", "French", "Spanish"]
+        )
+        self.lang_dropdown.pack(padx=20, pady=5)
+
         # Translation Checkbox
         self.translate_var = ctk.BooleanVar(value=config_manager.get("translate_to_layout"))
-        self.translate_checkbox = ctk.CTkCheckBox(self, text="Переводить текст на язык текущей раскладки", variable=self.translate_var)
-        self.translate_checkbox.pack(anchor="w", padx=20, pady=(15, 0))
+        self.translate_checkbox = ctk.CTkCheckBox(self, text="Переводить на язык активной раскладки (замедляет работу)", variable=self.translate_var)
+        self.translate_checkbox.pack(anchor="w", padx=20, pady=(5, 0))
 
         # Autostart Checkbox
         self.autostart_var = ctk.BooleanVar(value=config_manager.get("autostart"))
@@ -133,6 +147,7 @@ class SettingsApp(ctk.CTk):
         hotkey = self.hotkey_var.get().strip()
         autostart = self.autostart_var.get()
         translate = self.translate_var.get()
+        dictation_language = self.lang_var.get()
         enable_notion = self.enable_notion_var.get()
         notion_api = self.notion_api_entry.get().strip()
         notion_db = self.notion_db_entry.get().strip()
@@ -143,6 +158,7 @@ class SettingsApp(ctk.CTk):
         config_manager.set("hotkey", hotkey)
         config_manager.set("autostart", autostart)
         config_manager.set("translate_to_layout", translate)
+        config_manager.set("dictation_language", dictation_language)
         config_manager.set("enable_notion", enable_notion)
         config_manager.set("notion_api_key", notion_api)
         config_manager.set("notion_database_id", notion_db)
