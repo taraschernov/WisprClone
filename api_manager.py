@@ -6,6 +6,8 @@ from config import (get_api_key, WHISPER_MODEL, LLM_MODEL, SYSTEM_PROMPT,
                     NOTION_CATEGORIZATION_PROMPT, get_notion_api_key,
                     get_notion_database_id, get_enable_notion,
                     get_notion_trigger_word)
+import string
+import re
 
 class APIManager:
     def __init__(self):
@@ -34,8 +36,6 @@ class APIManager:
         prompt_instruction = SYSTEM_PROMPT
         if target_language and "Unknown" not in target_language:
             prompt_instruction += f"\nCRITICAL INSTRUCTION: The user's active keyboard layout is {target_language}. You MUST translate the transcription into {target_language} with perfect grammar. If it is already in {target_language}, just fix its grammar."
-        else:
-            prompt_instruction += f"\nCRITICAL INSTRUCTION: Do NOT translate the text into another language. Keep it strictly in its exact original language natively."
 
         response = self.client.chat.completions.create(
             messages=[
@@ -67,7 +67,6 @@ class APIManager:
             if enable_notion and trigger_word:
                 trigger_lower = trigger_word.lower()
                 
-                import string, re
                 cleaned_transcription = transcription.lower().translate(str.maketrans('', '', string.punctuation))
                 
                 # Check if it was spoken in the raw transcription
