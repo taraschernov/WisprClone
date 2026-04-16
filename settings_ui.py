@@ -10,7 +10,7 @@ class SettingsApp(ctk.CTk):
         super().__init__()
 
         self.title("Настройки WisprClone")
-        self.geometry("450x680")
+        self.geometry("450x740")
         self.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
@@ -34,10 +34,18 @@ class SettingsApp(ctk.CTk):
         self.step2 = ctk.CTkLabel(self.inst_frame, text="2. Вставьте ваш ключ сюда:", anchor="w", font=ctk.CTkFont(size=14))
         self.step2.pack(fill="x", pady=(10, 0))
 
-        # API Key Input
+        # Groq API Key Input
         self.api_entry = ctk.CTkEntry(self, placeholder_text="gsk_xxxxxxxxxxxxxxxxxxxxxx", show="*", width=410, font=ctk.CTkFont(size=14))
         self.api_entry.pack(padx=20, pady=5)
         self.api_entry.insert(0, config_manager.get("api_key") or "")
+
+        self.step3 = ctk.CTkLabel(self.inst_frame, text="3. Ключ Deepgram (Самый быстрый, опционально):", anchor="w", font=ctk.CTkFont(size=14))
+        self.step3.pack(fill="x", pady=(10, 0))
+
+        # Deepgram API Key Input
+        self.deepgram_entry = ctk.CTkEntry(self, placeholder_text="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", show="*", width=410, font=ctk.CTkFont(size=14))
+        self.deepgram_entry.pack(padx=20, pady=5)
+        self.deepgram_entry.insert(0, config_manager.get("deepgram_api_key") or "")
 
         # Notion Integration Section
         self.enable_notion_var = ctk.BooleanVar(value=config_manager.get("enable_notion"))
@@ -121,6 +129,7 @@ class SettingsApp(ctk.CTk):
 
     def save_and_close(self):
         api_key = self.api_entry.get().strip()
+        deepgram_key = self.deepgram_entry.get().strip()
         hotkey = self.hotkey_var.get().strip()
         autostart = self.autostart_var.get()
         translate = self.translate_var.get()
@@ -130,6 +139,7 @@ class SettingsApp(ctk.CTk):
         notion_trigger = self.notion_trigger_entry.get().strip().lower()
 
         config_manager.set("api_key", api_key)
+        config_manager.set("deepgram_api_key", deepgram_key)
         config_manager.set("hotkey", hotkey)
         config_manager.set("autostart", autostart)
         config_manager.set("translate_to_layout", translate)

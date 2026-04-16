@@ -22,7 +22,7 @@ class ConfigManager:
             "translate_to_layout": True,
             "enable_notion": True,
             "notion_trigger_word": "заметка",
-            "deepgram_api_key": "c5b45df3d1a1643be1b62e47ceaad6125a966bd9"
+            "deepgram_api_key": ""
         }
 
     def _ensure_dir_and_load(self):
