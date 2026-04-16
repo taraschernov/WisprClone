@@ -14,13 +14,14 @@ class APIManager:
     def __init__(self):
         self.client = Groq(api_key=get_api_key())
 
-    def transcribe_audio(self, audio_filepath, target_language=None):
+    def transcribe_audio(self, audio_filepath):
         """Sends the audio file to Deepgram or fallback to Groq Whisper."""
         print("[API] Transcribing audio...")
         deepgram_api_key = config_manager.get("deepgram_api_key")
+        dictation_lang = config_manager.get("dictation_language", "Russian")
         
         if deepgram_api_key:
-            # Map layout language to Deepgram language code
+            # Map dictation language to Deepgram language code
             lang_map = {
                 "Russian": "ru",
                 "English": "en",
@@ -30,14 +31,10 @@ class APIManager:
                 "French": "fr",
                 "Spanish": "es",
             }
-            lang_code = lang_map.get(target_language, "")
+            lang_code = lang_map.get(dictation_lang, "ru")
             
             # Build Deepgram URL
-            url = "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&punctuate=true"
-            if lang_code:
-                url += f"&language={lang_code}"
-            else:
-                url += "&detect_language=true"
+            url = f"https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&punctuate=true&language={lang_code}"
             
             import requests
             with open(audio_filepath, "rb") as file:
@@ -94,21 +91,29 @@ class APIManager:
         is_notion_note = False
         try:
             t1 = time.time()
-            transcription = self.transcribe_audio(audio_filepath, target_language=target_language)
+            transcription = self.transcribe_audio(audio_filepath)
             t2 = time.time()
             print(f"[API] Transcription ({t2-t1:.2f}s): {transcription}")
             if not transcription.strip():
                 return "", False
             
             # Skip LLM if translation is disabled — Deepgram already returns clean text
-            if config_manager.get("translate_to_layout") and target_language and "Unknown" not in target_language:
+            # We ONLY run LLM if translation is requested OR it's a Notion note (to categorize)
+            # Actually, let's logic: if translate_to_layout is ON and language is different -> Translate.
+            
+            is_translate_on = config_manager.get("translate_to_layout", False)
+            dictation_lang = config_manager.get("dictation_language", "Russian")
+            
+            do_translate = is_translate_on and target_language and target_language != dictation_lang and "Unknown" not in target_language
+
+            if do_translate:
                 t3 = time.time()
                 refined = self.refine_text(transcription, target_language)
                 t4 = time.time()
-                print(f"[API] Refined ({t4-t3:.2f}s): {refined}")
+                print(f"[API] Translated ({t4-t3:.2f}s) to {target_language}: {refined}")
             else:
                 refined = transcription
-                print(f"[API] Skipping LLM (translate off). Using Deepgram output directly.")
+                print(f"[API] Direct Mode (No translation).")
             
             # --- Trigger Word Logic ---
             trigger_word = get_notion_trigger_word()
@@ -195,8 +200,8 @@ class APIManager:
                 "tags": ["Voice Note"]
             }
 
-        topic = category_data.get("topic", "Uncategorized")
-        tags = category_data.get("tags", [])
+        topic = category_data.get("topic", "").strip() or "General"
+        tags = [t for t in category_data.get("tags", []) if t and str(t).strip()]
         is_useful = category_data.get("is_useful", True)
 
         # Truncate title for Notion if too long
@@ -207,9 +212,9 @@ class APIManager:
             "properties": {
                 "Name": {"title": [{"text": {"content": title}}]},
                 "Topic": {"select": {"name": topic}},
-                "Tags": {"multi_select": [{"name": tag} for tag in tags[:3]]},
-                "Useful": {"checkbox": is_useful},
-                "Text": {"rich_text": [{"text": {"content": text}}]}
+                "Tags": {"multi_select": [{"name": str(tag).strip()[:100]} for tag in tags[:3]]},
+                "Useful": {"checkbox": bool(is_useful)},
+                "Text": {"rich_text": [{"text": {"content": text[:2000]}}]}
             }
         }
 
