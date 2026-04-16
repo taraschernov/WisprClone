@@ -10,19 +10,28 @@ class SettingsApp(ctk.CTk):
         super().__init__()
 
         self.title("Настройки WisprClone")
-        self.geometry("460x600")
-        self.resizable(False, False)
+        width = 480
+        height = 650
+        
+        # Center the window
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        
+        self.resizable(True, True)
         
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
         # Scrollable Frame
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=430, height=580, fg_color="transparent")
+        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Title
-        self.title_label = ctk.CTkLabel(self.scroll_frame, text="Настройки WisprClone", font=ctk.CTkFont(size=20, weight="bold"))
-        self.title_label.pack(pady=(5, 5))
+        self.title_label = ctk.CTkLabel(self.scroll_frame, text="Настройки WisprClone", font=ctk.CTkFont(size=22, weight="bold"))
+        self.title_label.pack(pady=(10, 5))
 
         # Instructions Frame
         self.inst_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -82,7 +91,7 @@ class SettingsApp(ctk.CTk):
         self.notion_trigger_entry.insert(0, config_manager.get("notion_trigger_word") or "")
 
         # Hotkey Input
-        self.hotkey_label = ctk.CTkLabel(self.scroll_frame, text="Комбинация клавиш (удерживать для записи):", anchor="w", font=ctk.CTkFont(size=14))
+        self.hotkey_label = ctk.CTkLabel(self.scroll_frame, text="Клавиша для записи (Удерживать или CapsLock-переключатель):", anchor="w", font=ctk.CTkFont(size=14))
         self.hotkey_label.pack(fill="x", padx=20, pady=(15, 0))
 
         self.hotkey_var = ctk.StringVar(value=config_manager.get("hotkey") or "ctrl+shift")
@@ -91,7 +100,7 @@ class SettingsApp(ctk.CTk):
             variable=self.hotkey_var,
             font=ctk.CTkFont(size=14),
             width=380,
-            values=["ctrl+shift", "alt+shift", "f8", "f9", "right ctrl", "ctrl+alt"]
+            values=["ctrl+shift", "alt+shift", "f8", "f9", "right ctrl", "ctrl+alt", "caps lock"]
         )
         self.hotkey_dropdown.pack(padx=20, pady=5)
 

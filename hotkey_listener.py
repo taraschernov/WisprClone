@@ -16,19 +16,37 @@ class HotkeyListener:
         print(f"[Hotkey] Listening for: {get_hotkey()}")
         
         def loop():
+            import ctypes
+            user32 = ctypes.WinDLL('user32', use_last_error=True)
+            VK_CAPITAL = 0x14
+
             while self.running:
-                # keyboard.is_pressed handles combinations like 'alt+space'
                 try:
-                    if keyboard.is_pressed(get_hotkey()):
-                        if not self.is_recording:
-                            self.is_recording = True
-                            self.on_press()
+                    current_hotkey = get_hotkey().lower()
+                    
+                    # Logic for Caps Lock Toggle
+                    if current_hotkey == "caps lock":
+                        # GetKeyState bit 0 indicates toggle state
+                        is_toggled = user32.GetKeyState(VK_CAPITAL) & 1
+                        if is_toggled:
+                            if not self.is_recording:
+                                self.is_recording = True
+                                self.on_press()
+                        else:
+                            if self.is_recording:
+                                self.is_recording = False
+                                self.on_release()
                     else:
-                        if self.is_recording:
-                            self.is_recording = False
-                            self.on_release()
-                except Exception as e:
-                    # Ignore errors like keyboard input hooked
+                        # Standard Hold-to-Talk Logic
+                        if keyboard.is_pressed(get_hotkey()):
+                            if not self.is_recording:
+                                self.is_recording = True
+                                self.on_press()
+                        else:
+                            if self.is_recording:
+                                self.is_recording = False
+                                self.on_release()
+                except Exception:
                     pass
                 time.sleep(0.05)
                 
