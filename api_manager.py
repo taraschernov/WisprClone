@@ -131,12 +131,13 @@ class APIManager:
             enable_notion = get_enable_notion()
             
             if enable_notion and trigger_word:
-                trigger_lower = trigger_word.lower()
+                # Strictly check if trigger word is at the START or at the END
+                import re
+                trigger_esc = re.escape(trigger_word)
+                # Matches if word is at start (with optional leading non-alphanumeric) OR at end (with optional trailing)
+                pattern_detect = re.compile(rf'(^[\s\W]*{trigger_esc}\b)|(\b{trigger_esc}[\s\W]*$)', re.IGNORECASE)
                 
-                cleaned_transcription = transcription.lower().translate(str.maketrans('', '', string.punctuation))
-                
-                # Check if it was spoken in the raw transcription
-                if trigger_lower in cleaned_transcription:
+                if pattern_detect.search(transcription):
                     is_notion_note = True
                     
                     # Remove the trigger word at start or end of the *refined* text just in case the LLM left it in
