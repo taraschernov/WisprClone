@@ -100,10 +100,15 @@ class APIManager:
             if not transcription.strip():
                 return "", False
             
-            t3 = time.time()
-            refined = self.refine_text(transcription, target_language)
-            t4 = time.time()
-            print(f"[API] Refined ({t4-t3:.2f}s): {refined}")
+            # Skip LLM if translation is disabled — Deepgram already returns clean text
+            if config_manager.get("translate_to_layout") and target_language and "Unknown" not in target_language:
+                t3 = time.time()
+                refined = self.refine_text(transcription, target_language)
+                t4 = time.time()
+                print(f"[API] Refined ({t4-t3:.2f}s): {refined}")
+            else:
+                refined = transcription
+                print(f"[API] Skipping LLM (translate off). Using Deepgram output directly.")
             
             # --- Trigger Word Logic ---
             trigger_word = get_notion_trigger_word()
