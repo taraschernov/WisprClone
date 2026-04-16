@@ -63,16 +63,24 @@ class APIManager:
         return str(transcription)
 
     def refine_text(self, text, target_language=None):
-        """Sends transcribed text to Groq LLM for refinement."""
+        """Sends transcribed text to Groq LLM for refinement/translation."""
         if not text.strip():
             return ""
             
         print(f"[API] Refining text... (Target Language: {target_language})")
 
-        # Dynamic prompt construction
-        prompt_instruction = SYSTEM_PROMPT
-        if target_language and "Unknown" not in target_language and config_manager.get("translate_to_layout"):
-            prompt_instruction += f"\nCRITICAL INSTRUCTION: The user's active keyboard layout is {target_language}. You MUST translate the transcription into {target_language} with perfect grammar. If it is already in {target_language}, just fix its grammar."
+        from config import BASE_CLEANER_PROMPT, CLEAN_MODE_INSTRUCTION, TRANSLATE_MODE_INSTRUCTION
+        
+        is_translate_on = config_manager.get("translate_to_layout", False)
+        dictation_lang = config_manager.get("dictation_language", "Russian")
+        
+        # Determine mode
+        if is_translate_on and target_language and target_language != dictation_lang and "Unknown" not in target_language:
+            mode_instruction = TRANSLATE_MODE_INSTRUCTION.format(target_language=target_language)
+        else:
+            mode_instruction = CLEAN_MODE_INSTRUCTION
+
+        prompt_instruction = BASE_CLEANER_PROMPT.format(mode_instruction=mode_instruction)
 
         response = self.client.chat.completions.create(
             messages=[
@@ -81,7 +89,7 @@ class APIManager:
             ],
             model=LLM_MODEL,
             max_tokens=1024,
-            temperature=0.2
+            temperature=0.1 # Lowered temperature for more rigid output
         )
         return response.choices[0].message.content.strip()
 
