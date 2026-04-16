@@ -49,16 +49,21 @@ class APIManager:
         return response.choices[0].message.content.strip()
 
     def process_audio(self, audio_filepath, target_language=None):
+        import time
         text_result = ""
         is_notion_note = False
         try:
+            t1 = time.time()
             transcription = self.transcribe_audio(audio_filepath)
-            print(f"[API] Transcription: {transcription}")
+            t2 = time.time()
+            print(f"[API] Transcription ({t2-t1:.2f}s): {transcription}")
             if not transcription.strip():
                 return "", False
             
+            t3 = time.time()
             refined = self.refine_text(transcription, target_language)
-            print(f"[API] Refined: {refined}")
+            t4 = time.time()
+            print(f"[API] Refined ({t4-t3:.2f}s): {refined}")
             
             # --- Trigger Word Logic ---
             trigger_word = get_notion_trigger_word()

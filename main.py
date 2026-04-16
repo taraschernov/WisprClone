@@ -55,6 +55,8 @@ class App:
         self.audio.start_recording()
 
     def on_hotkey_release(self):
+        import time
+        start_time = time.time()
         print("[App] Hotkey released. Processing audio...")
         self.tray.set_recording(False)
         audio_filepath = self.audio.stop_recording()
@@ -66,6 +68,8 @@ class App:
                 text, is_notion = self.api.process_audio(audio_filepath, target_language=target_lang)
                 if text:
                     self.injector.inject_text(text)
+                    total_time = time.time() - start_time
+                    print(f"[App] ---> Total time from dictation to clipboard: {total_time:.2f} seconds")
                     if is_notion:
                         # Trigger Notion upload in a background thread so it doesn't block
                         threading.Thread(target=self.api.categorize_and_send_to_notion, args=(text,), daemon=True).start()
