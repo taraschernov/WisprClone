@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from groq import Groq
-from config import (get_api_key, WHISPER_MODEL, LLM_MODEL, SYSTEM_PROMPT,
+from config import (get_api_key, WHISPER_MODEL, LLM_MODEL, 
                     NOTION_CATEGORIZATION_PROMPT, get_notion_api_key,
                     get_notion_database_id, get_enable_notion,
                     get_notion_trigger_word)
