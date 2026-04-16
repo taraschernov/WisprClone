@@ -19,8 +19,17 @@ dist/
 
 # Application Data / Config Backup
 *.json
+*.env
+.env.*
 !config.json.example
+
+# Binaries & Archives
+*.zip
+*.rar
+*.exe
+*.msi
 
 # OS generated files
 .DS_Store
 Thumbs.db
+desktop.ini
