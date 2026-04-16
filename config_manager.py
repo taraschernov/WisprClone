@@ -18,7 +18,10 @@ class ConfigManager:
             "hotkey": "ctrl+alt+space",
             "autostart": False,
             "notion_api_key": "",
-            "notion_database_id": ""
+            "notion_database_id": "",
+            "translate_to_layout": True,
+            "enable_notion": True,
+            "notion_trigger_word": "заметка"
         }
 
     def _ensure_dir_and_load(self):
@@ -48,8 +51,8 @@ class ConfigManager:
         except Exception as e:
             print(f"[Config] Error saving config: {e}")
 
-    def get(self, key):
-        return self.settings.get(key)
+    def get(self, key, default=None):
+        return self.settings.get(key, default)
 
     def set(self, key, value):
         self.settings[key] = value
