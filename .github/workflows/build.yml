@@ -1,0 +1,177 @@
+name: Build YapClean
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Windows build → YapClean-Setup-{version}.exe
+  # ─────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: python build_windows.py
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build NSIS installer
+        run: |
+          choco install nsis -y
+          makensis /DAPP_VERSION=${{ steps.version.outputs.VERSION }} installer.nsi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YapClean-Windows
+          path: dist/YapClean-Setup-*.exe
+
+  # ─────────────────────────────────────────────
+  # macOS build → YapClean-{version}.dmg
+  # ─────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build with PyInstaller
+        run: python build_macos.py
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create DMG
+        run: bash create_dmg.sh ${{ steps.version.outputs.VERSION }}
+
+      - name: Notarize DMG
+        if: env.APPLE_ID != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool submit dist/YapClean-${{ steps.version.outputs.VERSION }}.dmg \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple dist/YapClean-${{ steps.version.outputs.VERSION }}.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YapClean-macOS
+          path: dist/YapClean-*.dmg
+
+  # ─────────────────────────────────────────────
+  # Linux build → YapClean-{version}-x86_64.AppImage
+  # ─────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libportaudio2 libsndfile1 \
+            libxcb-xinerama0 libxkbcommon-x11-0 \
+            libdbus-1-3 libsecret-1-0 \
+            xdotool fuse
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: python build_linux.py
+
+      - name: Download appimagetool
+        run: |
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create AppImage
+        run: bash package_appimage.sh ${{ steps.version.outputs.VERSION }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YapClean-Linux
+          path: dist/YapClean-*.AppImage
+
+  # ─────────────────────────────────────────────
+  # Create GitHub Release with all artifacts
+  # ─────────────────────────────────────────────
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "YapClean ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/YapClean-Windows/*.exe
+            artifacts/YapClean-macOS/*.dmg
+            artifacts/YapClean-Linux/*.AppImage
+          body: |
+            ## YapClean ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | Windows 10/11 | `YapClean-Setup-*.exe` |
+            | macOS 12+ | `YapClean-*.dmg` |
+            | Linux (AppImage) | `YapClean-*-x86_64.AppImage` |
+
+            ### What's new
+            See [CHANGELOG.md](CHANGELOG.md) for details.

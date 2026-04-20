@@ -6,7 +6,13 @@ if not os.path.exists("__init__.py"):
     with open("__init__.py", "w") as f:
         f.write("")
 
-print("Building WisprClone...")
+# Remove stale .spec to force regeneration from current flags
+spec_file = "YapClean.spec"
+if os.path.exists(spec_file):
+    os.remove(spec_file)
+    print(f"Removed old {spec_file}")
+
+print("Building YapClean...")
 
 # Package into a single executable without a console window
 # Using customtkinter requires adding its data folder
@@ -15,16 +21,17 @@ ctk_path = os.path.dirname(customtkinter.__file__)
 
 PyInstaller.__main__.run([
     'main.py',
-    '--name=WisprClone',
+    '--name=YapClean',
     '--noconsole',
     '--onedir',
     f'--add-data={ctk_path};customtkinter/',
     '--clean',
     '--noconfirm',
+    '--noupx',                          # Disable UPX — was corrupting the PKG archive
     '--hidden-import=settings_ui',
     '--hidden-import=PIL',
     '--hidden-import=pystray',
-    '--icon=NONE' # We don't have an .ico yet, fallback to default
+    '--icon=NONE',                      # No .ico yet, use default
 ])
 
-print("Build complete! Check the 'dist' folder for WisprClone.exe.")
+print("Build complete! Run dist/YapClean/YapClean.exe")

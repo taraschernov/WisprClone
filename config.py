@@ -1,14 +1,15 @@
-from config_manager import config_manager
+from storage.config_manager import config_manager
+from storage.keyring_manager import keyring_manager
 import os
 
 def get_api_key():
-    return config_manager.get("api_key") or os.getenv("GROQ_API_KEY", "")
+    return keyring_manager.get("api_key") or os.getenv("GROQ_API_KEY", "")
 
 def get_hotkey():
     return config_manager.get("hotkey") or "ctrl+shift"
 
 def get_notion_api_key():
-    return config_manager.get("notion_api_key") or os.getenv("NOTION_API_KEY", "")
+    return keyring_manager.get("notion_api_key") or os.getenv("NOTION_API_KEY", "")
 
 def get_notion_database_id():
     return config_manager.get("notion_database_id") or os.getenv("NOTION_DATABASE_ID", "")
@@ -67,4 +68,5 @@ Your output MUST be ONLY valid JSON and nothing else. Do NOT wrap it in markdown
 SAMPLE_RATE = 16000
 CHANNELS = 1
 SILENCE_THRESHOLD_RMS = 0.001  # Tune this based on microphone volume
-MIN_AUDIO_DURATION_SEC = 0.5  # Ignore audio shorter than this
+MIN_AUDIO_DURATION_SEC = 0.2  # FR-1.5: lowered threshold — short words like 'Ok', 'Done' must pass
+

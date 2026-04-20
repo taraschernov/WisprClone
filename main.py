@@ -3,23 +3,49 @@ import os
 import threading
 import time
 from audio_manager import AudioManager
-from api_manager import APIManager
 from clipboard_injector import ClipboardInjector
 from hotkey_listener import HotkeyListener
 from tray_app import TrayApp
 from config_manager import config_manager
+from storage.keyring_manager import keyring_manager
+from core.pipeline import Pipeline
+from core.app_awareness import AppAwarenessManager
+from personas.router import PersonaRouter
+from utils.logger import get_logger
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import subprocess
 import ctypes
+
+logger = get_logger("yapclean.app")
+
+
+class _ConfigChangeHandler(FileSystemEventHandler):
+    def __init__(self, app):
+        self._app = app
+        self._last_reload = 0
+
+    def on_modified(self, event):
+        now = time.time()
+        if now - self._last_reload < 0.5:
+            return
+        self._last_reload = now
+        if not event.is_directory:
+            self._app.reload_config()
+
 
 class App:
     def __init__(self):
         self.audio = AudioManager()
-        self.api = APIManager()
         self.injector = ClipboardInjector()
+        self._app_awareness = AppAwarenessManager()
+        self._persona_router = PersonaRouter()
+        self.pipeline = Pipeline(self.injector, self._app_awareness, self._persona_router)
         self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
         self.tray = TrayApp(self.on_exit)
         self.running = True
         self.current_language = None
+        self._observer = None
 
     def get_current_keyboard_language(self):
         try:
@@ -41,22 +67,20 @@ class App:
             }
             return langs.get(language_id, f"Language ID: {hex(language_id)}")
         except Exception as e:
-            print(f"[App] Error getting layout: {e}")
+            logger.error(f"Error getting layout: {e}")
             return None
 
     def on_hotkey_press(self):
-        print("[App] Hotkey pressed. Starting recording...")
+        logger.info("Hotkey pressed. Starting recording...")
         dictation_lang = config_manager.get("dictation_language", "Russian")
         translate = config_manager.get("translate_to_layout", False)
 
         if translate:
-            # Use active keyboard layout as the translation target
             self.current_language = self.get_current_keyboard_language()
-            print(f"[App] Translate mode: detected layout → {self.current_language}")
+            logger.info(f"Translate mode: detected layout → {self.current_language}")
         else:
-            # Use the fixed language the user speaks
             self.current_language = dictation_lang
-            print(f"[App] Dictation language: {self.current_language}")
+            logger.info(f"Dictation language: {self.current_language}")
             
         self.tray.set_recording(True)
         self.audio.start_recording()
@@ -64,7 +88,7 @@ class App:
     def on_hotkey_release(self):
         import time
         start_time = time.time()
-        print("[App] Hotkey released. Processing audio...")
+        logger.info("Hotkey released. Processing audio...")
         self.tray.set_recording(False)
         audio_filepath = self.audio.stop_recording()
         
@@ -72,47 +96,41 @@ class App:
         
         if audio_filepath:
             def process():
-                text, is_notion = self.api.process_audio(audio_filepath, target_language=target_lang)
-                if text:
-                    self.injector.inject_text(text)
+                self.tray.set_processing(True)
+                try:
+                    self.pipeline.process(audio_filepath, target_language=target_lang)
                     total_time = time.time() - start_time
-                    print(f"[App] ---> Total time from dictation to clipboard: {total_time:.2f} seconds")
-                    if is_notion:
-                        # Trigger Notion upload in a background thread so it doesn't block
-                        threading.Thread(target=self.api.categorize_and_send_to_notion, args=(text,), daemon=True).start()
-                else:
-                    print("[App] No text returned.")
-            # Run processing in background so hotkey thread isn't blocked
+                    logger.info(f"---> Total time from dictation to clipboard: {total_time:.2f} seconds")
+                finally:
+                    self.tray.set_processing(False)
             threading.Thread(target=process, daemon=True).start()
 
     def on_exit(self):
-        print("[App] Exiting...")
+        logger.info("Exiting...")
         self.running = False
+        if self._observer is not None:
+            self._observer.stop()
+            self._observer.join()
         self.hotkey.stop()
         self.tray.stop()
 
-    def check_config_reload(self):
-        """Periodically checks if the config file was modified and updates the App."""
+    def reload_config(self):
+        """Reload config from disk when config.json changes (triggered by watchdog)."""
         try:
             import json
             with open(config_manager.config_path, "r", encoding="utf-8") as f:
                 new_settings = json.load(f)
             
-            # Reload all settings that can change at runtime
+            # Reload all settings that can change at runtime (non-secret only)
             runtime_keys = [
-                "api_key", "translate_to_layout", "dictation_language",
-                "deepgram_api_key", "notion_api_key", "notion_database_id",
-                "enable_notion", "notion_trigger_word", "current_mode", 
-                "presets", "custom_system_prompt"
+                "translate_to_layout", "dictation_language",
+                "notion_database_id", "enable_notion", "notion_trigger_word",
+                "current_mode", "presets", "custom_system_prompt"
             ]
             for key in runtime_keys:
                 new_val = new_settings.get(key)
                 if new_val != config_manager.get(key):
                     config_manager.settings[key] = new_val
-
-            # Update Groq client if API key changed
-            if new_settings.get("api_key") != self.api.client.api_key:
-                self.api.client.api_key = new_settings.get("api_key", "")
 
             # Restart hotkey listener if hotkey changed
             new_hotkey = new_settings.get("hotkey")
@@ -123,70 +141,62 @@ class App:
                 self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
                 self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=True)
                 self.hotkey_thread.start()
-        except:
+        except Exception:
             pass
 
+    def start_config_watcher(self):
+        """Start a watchdog observer to watch config.json for changes."""
+        config_dir = os.path.dirname(config_manager.config_path)
+        handler = _ConfigChangeHandler(self)
+        self._observer = Observer()
+        self._observer.schedule(handler, path=config_dir, recursive=False)
+        self._observer.start()
+        logger.info(f"Config watcher started on: {config_dir}")
+
     def run(self):
-        # Open Settings automatically if no API Key is provided
-        if not config_manager.get("api_key"):
-            self.tray._on_settings(None, None)
-            
+        # Run onboarding wizard on first launch
+        if not config_manager.get("onboarding_complete", False):
+            from ui.onboarding import run_onboarding
+            run_onboarding()
+
         self.tray.start()
         self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=True)
         self.hotkey_thread.start()
+        self.start_config_watcher()
         
-        print("[App] Application is running.")
-        print("[App] Press the hotkey (check settings) to speak.")
+        logger.info("Application is running.")
+        logger.info("Press the hotkey (check settings) to speak.")
         
         try:
-            counter = 0
             while self.running:
                 time.sleep(0.5)
-                counter += 1
-                if counter % 4 == 0:  # Check for settings updates every 2 seconds
-                    self.check_config_reload()
         except KeyboardInterrupt:
-            print("[App] Keyboard interrupt. Exiting...")
+            logger.info("Keyboard interrupt. Exiting...")
         finally:
             self.on_exit()
         
         sys.exit(0)
 
-def is_already_running():
-    import tempfile
-    lock_file = os.path.join(tempfile.gettempdir(), "wispr_clone.lock")
-    try:
-        # Check if file exists and we can open it for writing EXCLUSIVELY
-        if os.path.exists(lock_file):
-            try:
-                os.remove(lock_file)
-            except OSError:
-                return True # Cannot remove, likely held by another instance
-        open(lock_file, 'w').close()
-        return False
-    except OSError:
-        return True
-
 if __name__ == "__main__":
-    if is_already_running():
-        print("[App] Already running. Exiting.")
+    from utils.single_instance import SingleInstance
+
+    _instance = SingleInstance()
+    if not _instance.acquire():
+        logger.info("[App] Already running. Exiting.")
         sys.exit(0)
-        
-    if "--settings" in sys.argv:
-        from settings_ui import open_settings
-        open_settings()
-    else:
-        app = App()
-        try:
-            app.run()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            app.on_exit()
-            # Try to release lock
-            import tempfile
-            lock_file = os.path.join(tempfile.gettempdir(), "wispr_clone.lock")
+
+    try:
+        if "--settings" in sys.argv:
+            from settings_ui import open_settings
+            open_settings()
+        else:
+            app = App()
             try:
-                os.remove(lock_file)
-            except:
+                app.run()
+            except KeyboardInterrupt:
                 pass
+            finally:
+                app.on_exit()
+    finally:
+        _instance.release()
+

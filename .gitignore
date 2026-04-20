@@ -33,3 +33,12 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Hypothesis database
+.hypothesis/
+
+# Pytest cache
+.pytest_cache/
+
+# Kiro spec config (local only)
+.kiro/specs/**/.config.kiro
