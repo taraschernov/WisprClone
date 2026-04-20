@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 import threading
 import time
 from audio_manager import AudioManager

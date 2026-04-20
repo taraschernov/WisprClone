@@ -17,6 +17,9 @@ _MODIFIER_MAP = {
     "right ctrl": {pynput_kb.Key.ctrl_r},
     "right alt":  {pynput_kb.Key.alt_r},
     "right shift":{pynput_kb.Key.shift_r},
+    "right cmd":  {pynput_kb.Key.cmd_r},
+    "cmd":        {pynput_kb.Key.cmd_l, pynput_kb.Key.cmd_r},
+    "ctrl+space": {pynput_kb.Key.ctrl_l, pynput_kb.Key.ctrl_r},  # parsed as combo
 }
 
 # Named function keys

@@ -167,18 +167,17 @@ class SettingsApp(ctk.CTk):
         self.hotkey_var = ctk.StringVar(
             value=config_manager.get("hotkey") or "ctrl+alt"
         )
+        import platform as _platform
+        _hotkey_values = [
+            "ctrl+shift", "alt+shift", "f8", "f9",
+            "right ctrl", "ctrl+alt", "caps lock",
+        ]
+        if _platform.system() == "Darwin":
+            _hotkey_values += ["right cmd", "ctrl+space", "fn"]
         ctk.CTkOptionMenu(
             group_inputs,
             variable=self.hotkey_var,
-            values=[
-                "ctrl+shift",
-                "alt+shift",
-                "f8",
-                "f9",
-                "right ctrl",
-                "ctrl+alt",
-                "caps lock",
-            ],
+            values=_hotkey_values,
         ).pack(fill="x", padx=10, pady=5)
 
         # 14.6 Hotkey mode selector
