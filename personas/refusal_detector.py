@@ -25,6 +25,16 @@ REFUSAL_PATTERNS = [
     r"^to (configure|set up|fix|solve|enable|disable)\b",
     r"^here are (the steps|instructions|some)",
     r"^follow these",
+    # Detect LLM answering AS the other person (role-playing)
+    r"^присылала",
+    r"^отправляла",
+    r"^я уже (отправил|прислал|написал)",
+    r"^конечно,? (пришлю|отправлю|напишу)",
+    r"^сейчас (пришлю|отправлю|напишу)",
+    # Detect LLM adding encyclopedic content
+    r"^медсистема\s*[-—]",
+    r"^это (комплексная|система|программа|платформа)",
+    r"^\w+ (включает в себя|состоит из|представляет собой)",
 ]
 
 

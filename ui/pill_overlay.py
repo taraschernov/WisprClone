@@ -169,9 +169,20 @@ class PillOverlay:
 
         sw = self._win.winfo_screenwidth()
         sh = self._win.winfo_screenheight()
-        x = (sw - PILL_W) // 2
-        y = sh - PILL_H - BOTTOM_OFFSET
+
+        # Load saved position or use default (bottom-center)
+        from storage.config_manager import config_manager
+        saved_x = config_manager.get("pill_x")
+        saved_y = config_manager.get("pill_y")
+        if saved_x is not None and saved_y is not None:
+            x, y = int(saved_x), int(saved_y)
+        else:
+            x = (sw - PILL_W) // 2
+            y = sh - PILL_H - BOTTOM_OFFSET
+
         self._win.geometry(f"{PILL_W}x{PILL_H}+{x}+{y}")
+        self._drag_x = 0
+        self._drag_y = 0
 
         sys = platform.system()
         if sys == "Windows":
@@ -225,6 +236,11 @@ class PillOverlay:
 
         # Start animation loop
         self._anim()
+
+        # Drag to move
+        self._cv.bind("<ButtonPress-1>", self._drag_start)
+        self._cv.bind("<B1-Motion>", self._drag_move)
+        self._cv.bind("<ButtonRelease-1>", self._drag_end)
 
     def _draw_pill(self):
         r, w, h = CORNER_R, PILL_W, PILL_H
@@ -377,6 +393,27 @@ class PillOverlay:
     def _auto_hide(self):
         self._autohide_id = None
         self._fade_out(cb=lambda: (setattr(self, "_state", "hidden"), self._win.withdraw()))
+
+    # ── Drag to move ───────────────────────────────────────────────────────────
+    def _drag_start(self, event):
+        self._drag_x = event.x
+        self._drag_y = event.y
+
+    def _drag_move(self, event):
+        dx = event.x - self._drag_x
+        dy = event.y - self._drag_y
+        x = self._win.winfo_x() + dx
+        y = self._win.winfo_y() + dy
+        self._win.geometry(f"+{x}+{y}")
+
+    def _drag_end(self, event):
+        # Save position to config
+        try:
+            from storage.config_manager import config_manager
+            config_manager.set("pill_x", self._win.winfo_x())
+            config_manager.set("pill_y", self._win.winfo_y())
+        except Exception:
+            pass
 
     # ── Destroy ────────────────────────────────────────────────────────────────
     def _do_destroy(self):
