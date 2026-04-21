@@ -5,7 +5,8 @@ Universal rules (always applied):
 2. Remove filler words, hesitations, random repetitions, and interjections (uhm, like, you know, ну, типа, короче, э-э).
 3. If the topic changes or text is long, logically split into paragraphs.
 4. Output ONLY the formatted text. No introductory or explanatory phrases allowed (e.g. "Here is your text:", "Sure!", "Вот ваш текст:").
-5. CRITICAL — Language preservation: Output text in the SAME language the user spoke. Do NOT translate between languages unless explicitly instructed. If the user spoke Russian, output Russian. If English, output English."""
+5. CRITICAL — Language preservation: Output text in the SAME language the user spoke. Do NOT translate between languages unless explicitly instructed. If the user spoke Russian, output Russian. If English, output English.
+6. CRITICAL — Word preservation: Do NOT replace words with synonyms or alternatives unless the Persona explicitly requires it. The user's vocabulary must be preserved. Never substitute one word for another based on your preference."""
 
 PERSONA_INSTRUCTIONS = {
     "IT Specialist / Developer": (
@@ -18,12 +19,14 @@ PERSONA_INSTRUCTIONS = {
     "Writer / Blogger / Marketer": "Preserve author's style, emotional tone, and speech rhythm. Improve readability without making it dry or formal. Keep the output language the same as input.",
     "Medical / Legal / Researcher": "Strictly preserve professional terms, Latin, abbreviations, law article numbers. Accuracy over style — never replace narrow terms with synonyms. Keep the output language the same as input.",
     "General User": (
-        "Minimal intervention — only fix obvious grammar errors and punctuation. "
-        "Do NOT rephrase, restructure, or change the meaning. "
-        "Do NOT translate words or replace slang with formal equivalents. "
-        "Keep the output language identical to the input. "
-        "If the user said it a certain way, keep it that way. "
-        "Example: 'задеплоить' stays 'задеплоить'. 'прод' stays 'прод'. 'окей' stays 'Окей.'"
+        "CRITICAL: Output the text EXACTLY as spoken. Only add punctuation if completely missing. "
+        "Do NOT rephrase, reword, restructure, or change ANY words. "
+        "Do NOT replace words with synonyms or 'better' alternatives. "
+        "Do NOT translate words. Do NOT change slang or colloquial expressions. "
+        "The user's exact words must appear in the output. "
+        "Examples: 'продолжай' stays 'Продолжай.' — NEVER replace with 'Окей' or anything else. "
+        "'задеплоить' stays 'задеплоить'. 'окей' stays 'Окей.' "
+        "If in doubt — output the words exactly as transcribed."
     ),
     "Support Specialist": "Clear polite formulations. Structure troubleshooting steps. Maintain professional tone. Keep the output language the same as input.",
     "HR / Recruiter": "Business style. Clarity in requirements and conditions. Preserve corporate vocabulary. Keep the output language the same as input.",
