@@ -41,7 +41,18 @@ class App:
         self.injector = ClipboardInjector()
         self._app_awareness = AppAwarenessManager()
         self._persona_router = PersonaRouter()
-        self.pipeline = Pipeline(self.injector, self._app_awareness, self._persona_router)
+
+        # Pill overlay (optional, can be disabled in settings)
+        self.pill = None
+        if config_manager.get("show_pill_overlay", True):
+            try:
+                from ui.pill_overlay import PillOverlay
+                self.pill = PillOverlay()
+                self.audio.amplitude_callback = self.pill.set_amplitude
+            except Exception as e:
+                logger.warning(f"PillOverlay failed to start: {e}")
+
+        self.pipeline = Pipeline(self.injector, self._app_awareness, self._persona_router, pill=self.pill)
         self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
         self.tray = TrayApp(self.on_exit)
         self.running = True
@@ -85,6 +96,8 @@ class App:
             
         self.tray.set_recording(True)
         self.audio.start_recording()
+        if self.pill:
+            self.pill.set_state("recording")
 
     def on_hotkey_release(self):
         import time
@@ -92,6 +105,9 @@ class App:
         logger.info("Hotkey released. Processing audio...")
         self.tray.set_recording(False)
         audio_filepath = self.audio.stop_recording()
+        
+        if self.pill:
+            self.pill.set_state("transcribing")
         
         target_lang = self.current_language
         
@@ -109,6 +125,11 @@ class App:
     def on_exit(self):
         logger.info("Exiting...")
         self.running = False
+        if self.pill:
+            try:
+                self.pill.destroy()
+            except Exception:
+                pass
         if self._observer is not None:
             self._observer.stop()
             self._observer.join()

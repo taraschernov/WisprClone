@@ -74,10 +74,11 @@ def _remove_trigger_word(text: str, trigger_word: str) -> str:
 
 
 class Pipeline:
-    def __init__(self, injector, app_awareness=None, persona_router=None):
+    def __init__(self, injector, app_awareness=None, persona_router=None, pill=None):
         self.injector = injector
         self.app_awareness = app_awareness
         self.persona_router = persona_router
+        self.pill = pill
         self._registry = ProviderRegistry()
         self._refusal_detector = RefusalDetector()
 
@@ -130,6 +131,8 @@ class Pipeline:
                 formatted_text = _format_short_phrase(raw_text)
                 logger.info(f"Short phrase ({len(raw_text.split())} words), skipping LLM: '{formatted_text}'")
             else:
+                if self.pill:
+                    self.pill.set_state("formatting")
                 custom_prompt = config_manager.get("custom_system_prompt", "")
                 system_prompt = build_system_prompt(persona, custom_prompt)
                 llm_provider = self._registry.get_llm_provider()
@@ -174,6 +177,10 @@ class Pipeline:
             self.injector.inject_text(final_text)
             logger.info(f"Total pipeline time: {time.time()-start_time:.2f}s")
 
+            # Show done state in pill
+            if self.pill:
+                self.pill.set_state("done", persona=persona)
+
             # 6. Notion (optional, non-blocking)
             enable_notion = config_manager.get("enable_notion", False)
             trigger_word = config_manager.get("notion_trigger_word", "")
@@ -190,6 +197,8 @@ class Pipeline:
 
         except Exception as e:
             logger.error(f"Pipeline error: {e}")
+            if self.pill:
+                self.pill.set_state("done", error=str(e)[:50])
         finally:
             if os.path.exists(audio_path):
                 try:

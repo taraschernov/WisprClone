@@ -28,7 +28,8 @@ class ConfigManager:
             "dictation_language": "Russian",
             "enable_notion": True,
             "notion_trigger_word": "заметка",
-            "ui_language": "en"
+            "ui_language": "en",
+            "show_pill_overlay": True
         }
 
     def _ensure_dir_and_load(self):

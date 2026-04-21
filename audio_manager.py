@@ -15,6 +15,7 @@ class AudioManager:
         self.recording = False
         self.stream = None
         self.audio_data = []
+        self.amplitude_callback = None  # set by App to feed PillOverlay
 
     def start_recording(self):
         """Starts capturing audio from the default microphone."""
@@ -32,6 +33,13 @@ class AudioManager:
         """Callback for sounddevice stream."""
         if self.recording:
             self.audio_data.append(indata.copy())
+            if self.amplitude_callback:
+                try:
+                    import numpy as np
+                    rms = float(np.sqrt(np.mean(np.square(indata))))
+                    self.amplitude_callback(rms)
+                except Exception:
+                    pass
 
     def stop_recording(self):
         """Stops capturing and returns path to temp WAV file, or None if silent/too short."""

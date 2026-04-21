@@ -268,6 +268,11 @@ class SettingsApp(ctk.CTk):
             scroll, text=t("settings.autostart"), variable=self.autostart_var
         ).pack(anchor="w", padx=20, pady=5)
 
+        self.pill_overlay_var = ctk.BooleanVar(value=config_manager.get("show_pill_overlay", True))
+        ctk.CTkCheckBox(
+            scroll, text=t("settings.pill_overlay"), variable=self.pill_overlay_var
+        ).pack(anchor="w", padx=20, pady=5)
+
         # Notion
         group_notion = ctk.CTkFrame(scroll)
         group_notion.pack(fill="x", padx=10, pady=10)
@@ -491,6 +496,7 @@ class SettingsApp(ctk.CTk):
         config_manager.set("input_device", self.mic_var.get())
 
         config_manager.set("autostart", self.autostart_var.get())
+        config_manager.set("show_pill_overlay", self.pill_overlay_var.get())
         config_manager.set("translate_to_layout", self.translate_var.get())
         config_manager.set("dictation_language", self.lang_var.get())
         config_manager.set("enable_notion", self.enable_notion_var.get())
