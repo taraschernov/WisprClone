@@ -12,6 +12,28 @@ from i18n.translator import t
 
 logger = get_logger("yapclean.pipeline")
 
+# Known Whisper hallucinations on short/silent audio
+_WHISPER_HALLUCINATIONS = {
+    "продолжение следует",
+    "to be continued",
+    "спасибо за просмотр",
+    "thanks for watching",
+    "подписывайтесь на канал",
+    "subscribe to the channel",
+    "конец",
+    "the end",
+    "субтитры добавлены",
+    "subtitles by",
+    "amara.org",
+    "www.",
+    "http",
+}
+
+def _is_hallucination(text: str) -> bool:
+    """Detect known Whisper hallucinations on short/silent audio."""
+    t_lower = text.strip().lower().rstrip('.')
+    return t_lower in _WHISPER_HALLUCINATIONS or any(h in t_lower for h in _WHISPER_HALLUCINATIONS)
+
 
 def _detect_notion_trigger(text: str, trigger_word: str) -> bool:
     if not trigger_word:
@@ -76,6 +98,10 @@ class Pipeline:
 
             if not raw_text.strip():
                 logger.info("Empty transcription, skipping.")
+                return
+
+            if _is_hallucination(raw_text):
+                logger.warning(f"Whisper hallucination detected, skipping: '{raw_text}'")
                 return
 
             # 3. LLM Smart Formatting (always-on unless bypass)
