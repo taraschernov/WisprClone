@@ -26,7 +26,7 @@ class OpenAILLM(LLMProvider):
                         },
                         {
                             "role": "user",
-                            "content": f"<transcription>\n{text}\n</transcription>",
+                            "content": text,
                         },
                     ],
                     max_tokens=2048,
@@ -38,3 +38,4 @@ class OpenAILLM(LLMProvider):
                     time.sleep(2 ** attempt)
                 else:
                     raise ProviderError(f"OpenAI LLM failed after 3 attempts: {e}")
+

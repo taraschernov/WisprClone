@@ -88,6 +88,9 @@ class Pipeline:
                 llm_provider = self._registry.get_llm_provider()
                 try:
                     llm_output = llm_provider.refine(raw_text, persona, system_prompt)
+                    # Strip any XML/HTML tags the LLM might have added
+                    import re as _re
+                    llm_output = _re.sub(r'<[^>]+>', '', llm_output).strip()
                     formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
                 except Exception as llm_err:
                     logger.error(f"LLM failed: {llm_err}")
@@ -108,11 +111,15 @@ class Pipeline:
                     f"Translate the following text to {target_language}. "
                     f"CRITICAL: Preserve the exact structure, formatting, line breaks, bullet points, and dashes from the original. "
                     f"Preserve all technical terms, proper nouns, code snippets, and abbreviations as-is. "
-                    f"Output ONLY the translated text, nothing else."
+                    f"Output ONLY the translated text, nothing else. "
+                    f"Do NOT wrap the output in any tags, brackets, or markup."
                 )
                 try:
                     llm_provider = self._registry.get_llm_provider()
                     translated = llm_provider.refine(formatted_text, persona, translate_prompt)
+                    # Strip any XML/HTML tags the LLM might have added
+                    import re as _re
+                    translated = _re.sub(r'<[^>]+>', '', translated).strip()
                     final_text = self._refusal_detector.check(translated, fallback=formatted_text)
                     logger.info(f"Translated ({time.time()-start_time:.2f}s) -> {target_language}: {final_text}")
                 except Exception as e:

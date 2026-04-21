@@ -25,7 +25,7 @@ class OllamaLLM(LLMProvider):
                             },
                             {
                                 "role": "user",
-                                "content": f"<transcription>\n{text}\n</transcription>",
+                                "content": text,
                             },
                         ],
                         "stream": False,
@@ -38,3 +38,4 @@ class OllamaLLM(LLMProvider):
                     time.sleep(2 ** attempt)
                 else:
                     raise ProviderError(f"Ollama LLM failed after 3 attempts: {e}")
+

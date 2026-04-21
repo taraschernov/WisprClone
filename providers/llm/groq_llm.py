@@ -25,7 +25,7 @@ class GroqLLM(LLMProvider):
                         },
                         {
                             "role": "user",
-                            "content": f"<transcription>\n{text}\n</transcription>",
+                            "content": text,
                         },
                     ],
                     model=LLM_MODEL,
@@ -38,3 +38,4 @@ class GroqLLM(LLMProvider):
                     time.sleep(2 ** attempt)
                 else:
                     raise ProviderError(f"Groq LLM failed after 3 attempts: {e}")
+
