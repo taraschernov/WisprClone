@@ -17,6 +17,14 @@ REFUSAL_PATTERNS = [
     r"^sure[,!]\s",
     r"^of course[,!]\s",
     r"^certainly[,!]\s",
+    # Detect LLM answering a question instead of formatting it
+    r"^чтобы .{5,}, (выполните|сделайте|перейдите|нажмите|откройте)",
+    r"^для (того чтобы|настройки|решения)",
+    r"^вот (как|шаги|инструкция|способ)",
+    r"^следуйте (этим|следующим)",
+    r"^to (configure|set up|fix|solve|enable|disable)\b",
+    r"^here are (the steps|instructions|some)",
+    r"^follow these",
 ]
 
 
