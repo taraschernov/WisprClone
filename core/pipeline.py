@@ -25,14 +25,28 @@ _WHISPER_HALLUCINATIONS = {
     "субтитры добавлены",
     "subtitles by",
     "amara.org",
-    "www.",
-    "http",
 }
 
 def _is_hallucination(text: str) -> bool:
     """Detect known Whisper hallucinations on short/silent audio."""
     t_lower = text.strip().lower().rstrip('.')
     return t_lower in _WHISPER_HALLUCINATIONS or any(h in t_lower for h in _WHISPER_HALLUCINATIONS)
+
+
+def _is_short_phrase(text: str, max_words: int = 4) -> bool:
+    """Short phrases (<=max_words) should skip LLM to preserve exact words."""
+    return len(text.strip().split()) <= max_words
+
+
+def _format_short_phrase(text: str) -> str:
+    """Minimal formatting: capitalize + add period if missing."""
+    text = text.strip()
+    if not text:
+        return text
+    text = text[0].upper() + text[1:]
+    if text[-1] not in '.!?,;:':
+        text += '.'
+    return text
 
 
 def _detect_notion_trigger(text: str, trigger_word: str) -> bool:
@@ -100,14 +114,21 @@ class Pipeline:
                 logger.info("Empty transcription, skipping.")
                 return
 
+            # Block known Whisper hallucinations
             if _is_hallucination(raw_text):
                 logger.warning(f"Whisper hallucination detected, skipping: '{raw_text}'")
                 return
 
-            # 3. LLM Smart Formatting (always-on unless bypass)
-            if config_manager.get("bypass_llm", False):
+            # 3. LLM Smart Formatting
+            bypass = config_manager.get("bypass_llm", False)
+
+            if bypass:
                 formatted_text = raw_text
                 logger.info("Bypass mode: skipping LLM.")
+            elif _is_short_phrase(raw_text):
+                # Short phrases (<=4 words): skip LLM, preserve exact words
+                formatted_text = _format_short_phrase(raw_text)
+                logger.info(f"Short phrase ({len(raw_text.split())} words), skipping LLM: '{formatted_text}'")
             else:
                 custom_prompt = config_manager.get("custom_system_prompt", "")
                 system_prompt = build_system_prompt(persona, custom_prompt)
@@ -115,8 +136,7 @@ class Pipeline:
                 try:
                     llm_output = llm_provider.refine(raw_text, persona, system_prompt)
                     # Strip any XML/HTML tags the LLM might have added
-                    import re as _re
-                    llm_output = _re.sub(r'<[^>]+>', '', llm_output).strip()
+                    llm_output = re.sub(r'<[^>]+>', '', llm_output).strip()
                     formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
                 except Exception as llm_err:
                     logger.error(f"LLM failed: {llm_err}")
@@ -130,7 +150,7 @@ class Pipeline:
                 target_language
                 and target_language != dictation_lang
                 and "Language ID" not in str(target_language)
-                and not config_manager.get("bypass_llm", False)
+                and not bypass
             )
             if needs_translation:
                 translate_prompt = (
@@ -143,9 +163,7 @@ class Pipeline:
                 try:
                     llm_provider = self._registry.get_llm_provider()
                     translated = llm_provider.refine(formatted_text, persona, translate_prompt)
-                    # Strip any XML/HTML tags the LLM might have added
-                    import re as _re
-                    translated = _re.sub(r'<[^>]+>', '', translated).strip()
+                    translated = re.sub(r'<[^>]+>', '', translated).strip()
                     final_text = self._refusal_detector.check(translated, fallback=formatted_text)
                     logger.info(f"Translated ({time.time()-start_time:.2f}s) -> {target_language}: {final_text}")
                 except Exception as e:
