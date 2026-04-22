@@ -25,6 +25,7 @@ _WHISPER_HALLUCINATIONS = {
     "субтитры добавлены",
     "subtitles by",
     "amara.org",
+    "dimatorzok",
 }
 
 def _is_hallucination(text: str) -> bool:

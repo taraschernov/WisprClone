@@ -18,17 +18,15 @@ from utils.logger import get_logger
 logger = get_logger("yapclean.pill_overlay")
 
 # ── Geometry ───────────────────────────────────────────────────────────────────
-PILL_W = 340
-PILL_H = 60
-CORNER_R = 30          # full pill shape
-PILL_ALPHA = 0.95      # slightly transparent
-
-# Position: bottom-center, just above taskbar (~80px from bottom)
-# On a 1080p screen this puts it around y=940
+PILL_W_REC    = 340
+PILL_W_SMALL  = 180
+PILL_H        = 60
+CORNER_R      = 30          # full pill shape
+PILL_ALPHA    = 0.95      # slightly transparent
 BOTTOM_OFFSET = 90
 
 # ── Colors ─────────────────────────────────────────────────────────────────────
-BG_COLOR      = "#232326"   # dark charcoal, like Spokenly
+BG_COLOR      = "#1A1A1C"   # slightly darker charcoal
 COLOR_REC     = "#9B59F5"   # purple
 COLOR_TRANS   = "#4A9EF5"   # blue
 COLOR_FMT     = "#F5A623"   # amber
@@ -36,8 +34,9 @@ COLOR_OK      = "#27AE60"   # green
 COLOR_ERR     = "#E74C3C"   # red
 COLOR_TEXT    = "#FFFFFF"
 COLOR_DIM     = "#888888"
+TRANS_KEY     = "#000001"   # Chroma key for transparency
 
-# ── Waveform ───────────────────────────────────────────────────────────────────
+# ── Waveform / Spinner ─────────────────────────────────────────────────────────
 BAR_COUNT    = 16
 BAR_W        = 3
 BAR_GAP      = 2
@@ -45,10 +44,8 @@ BAR_MAX_H    = 26
 BAR_MIN_H    = 3
 
 # ── Layout ─────────────────────────────────────────────────────────────────────
-WAVE_X       = PILL_W // 2 - 30   # waveform center x (left of center)
-WAVE_Y       = PILL_H // 2
-TEXT_X       = PILL_W - 20        # right-aligned text
-FONT         = ("Segoe UI", 15)
+# We use relative positioning now for dynamic width
+FONT         = ("Segoe UI Semibold", 13)
 FONT_ICON    = ("Segoe UI", 18, "bold")
 
 
@@ -62,10 +59,8 @@ def _truncate(s: str, n: int = 18) -> str:
 
 # ══════════════════════════════════════════════════════════════════════════════
 class WaveformAnimator:
-    def __init__(self, canvas: tk.Canvas, cx: int, cy: int, color: str):
+    def __init__(self, canvas: tk.Canvas, color: str):
         self._c = canvas
-        self._cx = cx
-        self._cy = cy
         self._color = color
         self._heights = [float(BAR_MIN_H)] * BAR_COUNT
         self._targets = [float(BAR_MIN_H)] * BAR_COUNT
@@ -76,13 +71,11 @@ class WaveformAnimator:
         self._create()
 
     def _create(self):
-        total = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP
-        x0 = self._cx - total // 2
+        # Initial positions, will be updated in tick()
         for i in range(BAR_COUNT):
-            x = x0 + i * (BAR_W + BAR_GAP)
-            bid = self._c.create_rectangle(x, self._cy, x + BAR_W, self._cy,
+            bid = self._c.create_rectangle(0, 0, 0, 0,
                                             fill=self._color, outline=self._color,
-                                            state=tk.HIDDEN)
+                                            state=tk.HIDDEN, tags="wave")
             self._bars.append(bid)
 
     def show(self, color: str):
@@ -97,28 +90,29 @@ class WaveformAnimator:
             self._c.itemconfig(b, state=tk.HIDDEN)
 
     def set_amp(self, rms: float):
-        self._amp = min(rms * 10.0, 1.0)
+        self._amp = min(rms * 12.0, 1.0)
         for i in range(BAR_COUNT):
             cf = 1.0 - abs(i - BAR_COUNT / 2.0) / (BAR_COUNT / 2.0) * 0.35
             n = random.uniform(0.6, 1.4)
             self._targets[i] = BAR_MIN_H + (BAR_MAX_H - BAR_MIN_H) * self._amp * cf * n
 
-    def tick(self):
+    def tick(self, cx: int, cy: int):
         if not self._visible:
             return
         if self._amp < 0.02:
-            self._phase += 0.07
+            self._phase += 0.08
             for i in range(BAR_COUNT):
                 s = (math.sin(self._phase + i / BAR_COUNT * math.pi * 2) + 1) / 2
-                self._targets[i] = BAR_MIN_H + (BAR_MAX_H * 0.3 - BAR_MIN_H) * s
+                self._targets[i] = BAR_MIN_H + (BAR_MAX_H * 0.35 - BAR_MIN_H) * s
         for i in range(BAR_COUNT):
-            self._heights[i] += (self._targets[i] - self._heights[i]) * 0.35
+            self._heights[i] += (self._targets[i] - self._heights[i]) * 0.4
+        
         total = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP
-        x0 = self._cx - total // 2
+        x0 = cx - total // 2
         for i, bid in enumerate(self._bars):
             h = max(BAR_MIN_H, self._heights[i])
             x = x0 + i * (BAR_W + BAR_GAP)
-            self._c.coords(bid, x, self._cy - h / 2, x + BAR_W, self._cy + h / 2)
+            self._c.coords(bid, x, cy - h / 2, x + BAR_W, cy + h / 2)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -146,6 +140,8 @@ class PillOverlay:
             self._state = "hidden"
             self._persona = ""
             self._error = ""
+            self._width = PILL_W_REC
+            self._target_width = PILL_W_REC
             self._rec_start: Optional[float] = None
             self._timer_id: Optional[str] = None
             self._spinner_id: Optional[str] = None
@@ -165,99 +161,92 @@ class PillOverlay:
         self._win.attributes("-topmost", True)
         self._win.attributes("-alpha", 0.0)
         self._win.resizable(False, False)
-        self._win.configure(bg=BG_COLOR)
+        self._win.configure(bg=TRANS_KEY)
 
         sw = self._win.winfo_screenwidth()
         sh = self._win.winfo_screenheight()
 
-        # Load saved position or use default (bottom-center)
         from storage.config_manager import config_manager
         saved_x = config_manager.get("pill_x")
         saved_y = config_manager.get("pill_y")
         if saved_x is not None and saved_y is not None:
             x, y = int(saved_x), int(saved_y)
         else:
-            x = (sw - PILL_W) // 2
+            x = (sw - PILL_W_REC) // 2
             y = sh - PILL_H - BOTTOM_OFFSET
 
-        self._win.geometry(f"{PILL_W}x{PILL_H}+{x}+{y}")
+        self._win.geometry(f"{PILL_W_REC}x{PILL_H}+{x}+{y}")
         self._drag_x = 0
         self._drag_y = 0
 
+        # Windows transparency and no-focus
         sys = platform.system()
         if sys == "Windows":
             try:
                 import ctypes
                 try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
                 except: pass
+                # Set transparency key
+                self._win.attributes("-transparentcolor", TRANS_KEY)
+                
                 hwnd = ctypes.windll.user32.GetParent(self._win.winfo_id())
                 style = ctypes.windll.user32.GetWindowLongW(hwnd, -20)
+                # WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_LAYERED
                 ctypes.windll.user32.SetWindowLongW(hwnd, -20,
                     style | 0x08000000 | 0x00000080 | 0x00000020)
             except Exception as e:
-                logger.warning(f"Win no-focus: {e}")
-        elif sys == "Darwin":
-            try: self._win.attributes("-type", "utility")
-            except: pass
-        elif sys == "Linux":
-            try: self._win.attributes("-type", "dock")
-            except: pass
+                logger.warning(f"Win no-focus/transparency: {e}")
 
         self._win.withdraw()
 
     def _build(self):
-        self._cv = tk.Canvas(self._win, width=PILL_W, height=PILL_H,
-                              bg=BG_COLOR, highlightthickness=0, bd=0)
+        self._cv = tk.Canvas(self._win, width=PILL_W_REC, height=PILL_H,
+                              bg=TRANS_KEY, highlightthickness=0, bd=0)
         self._cv.pack(fill=tk.BOTH, expand=True)
 
-        # Pill background
+        # Pill background (tags="bg")
         self._draw_pill()
 
-        # Waveform (left-center)
-        self._wave = WaveformAnimator(self._cv, WAVE_X, WAVE_Y, COLOR_REC)
+        # Waveform
+        self._wave = WaveformAnimator(self._cv, COLOR_REC)
 
-        # Spinner dots (center, hidden by default)
+        # Spinner dots
         self._dots: list[int] = []
         for i in range(3):
-            cx = PILL_W // 2 - 16 + i * 16
-            d = self._cv.create_oval(cx-5, WAVE_Y-5, cx+5, WAVE_Y+5,
-                                      fill=COLOR_FMT, outline="", state=tk.HIDDEN)
+            d = self._cv.create_oval(0, 0, 0, 0,
+                                      fill=COLOR_FMT, outline="", state=tk.HIDDEN, tags="dots")
             self._dots.append(d)
 
         # Done icon
         self._icon_id = self._cv.create_text(
-            PILL_W // 2 - 50, WAVE_Y, text="", anchor="center",
-            fill=COLOR_OK, font=FONT_ICON)
+            0, 0, text="", anchor="center",
+            fill=COLOR_OK, font=FONT_ICON, tags="icon")
 
-        # Right-side text (timer / status / persona)
+        # Right-side text
         self._text_id = self._cv.create_text(
-            TEXT_X, WAVE_Y, text="", anchor="e",
-            fill=COLOR_TEXT, font=FONT)
+            0, 0, text="", anchor="w",
+            fill=COLOR_TEXT, font=FONT, tags="text")
 
-        # Start animation loop
         self._anim()
 
-        # Drag to move
         self._cv.bind("<ButtonPress-1>", self._drag_start)
         self._cv.bind("<B1-Motion>", self._drag_move)
         self._cv.bind("<ButtonRelease-1>", self._drag_end)
 
     def _draw_pill(self):
-        r, w, h = CORNER_R, PILL_W, PILL_H
+        self._cv.delete("bg")
+        r, w, h = CORNER_R, int(self._width), PILL_H
         pts = []
-        for a in range(90, 181, 4):
+        # Left half-circle
+        for a in range(90, 271, 5):
             rad = math.radians(a)
             pts += [r + r*math.cos(rad), r + r*math.sin(rad)]
-        for a in range(180, 271, 4):
-            rad = math.radians(a)
-            pts += [r + r*math.cos(rad), h-r + r*math.sin(rad)]
-        for a in range(270, 361, 4):
-            rad = math.radians(a)
-            pts += [w-r + r*math.cos(rad), h-r + r*math.sin(rad)]
-        for a in range(0, 91, 4):
+        # Right half-circle
+        for a in range(270, 451, 5):
             rad = math.radians(a)
             pts += [w-r + r*math.cos(rad), r + r*math.sin(rad)]
-        self._cv.create_polygon(pts, fill=BG_COLOR, outline=BG_COLOR, tags="bg")
+        
+        self._cv.create_polygon(pts, fill=BG_COLOR, outline="#333336", width=1, tags="bg")
 
     # ── Queue ──────────────────────────────────────────────────────────────────
     def _poll(self):
@@ -281,6 +270,7 @@ class PillOverlay:
         if self._autohide_id:
             self._root.after_cancel(self._autohide_id)
             self._autohide_id = None
+        
         prev = self._state
         self._state = state
         self._persona = persona
@@ -289,6 +279,7 @@ class PillOverlay:
         self._stop_spinner()
 
         if state == "recording":
+            self._target_width = PILL_W_REC
             self._rec_start = time.monotonic()
             self._cv.itemconfig(self._text_id, text=_fmt_timer(0), fill=COLOR_TEXT)
             self._cv.itemconfig(self._icon_id, text="")
@@ -297,25 +288,25 @@ class PillOverlay:
             if prev == "hidden":
                 self._win.deiconify()
                 self._fade_in()
-            else:
-                self._win.deiconify()
-                self._win.attributes("-alpha", PILL_ALPHA)
             self._start_timer()
 
         elif state == "transcribing":
+            self._target_width = PILL_W_REC # Keep wide for the text
             self._cv.itemconfig(self._text_id, text=t("pill.transcribing"), fill=COLOR_DIM)
             self._cv.itemconfig(self._icon_id, text="")
             self._wave.show(COLOR_TRANS)
             self._hide_dots()
 
         elif state == "formatting":
-            self._cv.itemconfig(self._text_id, text=t("pill.formatting"), fill=COLOR_DIM)
+            self._target_width = PILL_W_SMALL
+            self._cv.itemconfig(self._text_id, text="", fill=COLOR_DIM)
             self._cv.itemconfig(self._icon_id, text="")
             self._wave.hide()
             self._show_dots()
             self._start_spinner()
 
         elif state == "done":
+            self._target_width = PILL_W_REC if error else PILL_W_SMALL
             self._wave.hide()
             self._hide_dots()
             if error:
@@ -323,9 +314,11 @@ class PillOverlay:
                 self._cv.itemconfig(self._text_id, text=_truncate(error, 16), fill=COLOR_ERR)
             else:
                 self._cv.itemconfig(self._icon_id, text="\u2713", fill=COLOR_OK)
-                label = _truncate(persona) if persona else t("pill.done")
+                # For success, just show the checkmark or persona very briefly
+                label = _truncate(persona) if persona else ""
                 self._cv.itemconfig(self._text_id, text=label, fill=COLOR_TEXT)
-            self._autohide_id = self._root.after(1800, self._auto_hide)
+            
+            self._autohide_id = self._root.after(2200, self._auto_hide)
 
         elif state == "hidden":
             self._fade_out(cb=lambda: self._win.withdraw())
@@ -361,7 +354,7 @@ class PillOverlay:
         for i, d in enumerate(self._dots):
             self._cv.itemconfig(d, fill=COLOR_FMT if i == self._spinner_step % 3 else "#4a3800")
         self._spinner_step += 1
-        self._spinner_id = self._root.after(200, self._tick_spinner)
+        self._spinner_id = self._root.after(250, self._tick_spinner)
 
     def _stop_spinner(self):
         if self._spinner_id:
@@ -370,29 +363,62 @@ class PillOverlay:
 
     # ── Animation ──────────────────────────────────────────────────────────────
     def _anim(self):
-        if self._wave: self._wave.tick()
-        self._root.after(33, self._anim)
+        # 1. Smooth width transition
+        if abs(self._width - self._target_width) > 1:
+            diff = self._target_width - self._width
+            self._width += diff * 0.15
+            # Center the window relative to its previous center
+            cx = self._win.winfo_x() + self._win.winfo_width() // 2
+            new_x = cx - int(self._width) // 2
+            self._win.geometry(f"{int(self._width)}x{PILL_H}+{new_x}+{self._win.winfo_y()}")
+            self._cv.config(width=int(self._width))
+            self._draw_pill()
+
+        # 2. Update element positions based on current width
+        mid_x = self._width / 2
+        mid_y = PILL_H / 2
+
+        if self._state in ("recording", "transcribing"):
+            # Waveform left of center, text right of center
+            self._wave.tick(mid_x - 30, mid_y)
+            self._cv.coords(self._text_id, mid_x + 30, mid_y)
+            self._cv.itemconfig(self._text_id, anchor="w")
+        elif self._state == "formatting":
+            # Dots centered
+            for i, d in enumerate(self._dots):
+                dx = mid_x - 16 + i * 16
+                self._cv.coords(d, dx-5, mid_y-5, dx+5, mid_y+5)
+        elif self._state == "done":
+            # Icon centered or icon+text
+            if self._cv.itemcget(self._text_id, "text"):
+                self._cv.coords(self._icon_id, mid_x - 40, mid_y)
+                self._cv.coords(self._text_id, mid_x - 10, mid_y)
+                self._cv.itemconfig(self._text_id, anchor="w")
+            else:
+                self._cv.coords(self._icon_id, mid_x, mid_y)
+
+        self._root.after(20, self._anim)
 
     # ── Fade ───────────────────────────────────────────────────────────────────
-    def _fade_in(self, ms: int = 180):
-        steps = 12
+    def _fade_in(self, ms: int = 200):
+        steps = 10
         for i in range(steps + 1):
             a = (i / steps) * PILL_ALPHA
-            self._root.after(i * (ms // steps), lambda v=a: self._win.attributes("-alpha", v))
+            self._root.after(i * (ms // steps), lambda v=a: self._win.attributes("-alpha", v) if self._win.winfo_exists() else None)
 
-    def _fade_out(self, ms: int = 220, cb=None):
-        steps = 12
+    def _fade_out(self, ms: int = 250, cb=None):
+        steps = 10
         for i in range(steps + 1):
             a = PILL_ALPHA * (1 - i / steps)
             delay = i * (ms // steps)
-            if i == steps and cb:
-                self._root.after(delay, cb)
+            if i == steps:
+                if cb: self._root.after(delay, cb)
             else:
-                self._root.after(delay, lambda v=a: self._win.attributes("-alpha", v))
+                self._root.after(delay, lambda v=a: self._win.attributes("-alpha", v) if self._win.winfo_exists() else None)
 
     def _auto_hide(self):
         self._autohide_id = None
-        self._fade_out(cb=lambda: (setattr(self, "_state", "hidden"), self._win.withdraw()))
+        self._fade_out(cb=lambda: (setattr(self, "_state", "hidden"), self._win.withdraw() if self._win.winfo_exists() else None))
 
     # ── Drag to move ───────────────────────────────────────────────────────────
     def _drag_start(self, event):
@@ -407,7 +433,6 @@ class PillOverlay:
         self._win.geometry(f"+{x}+{y}")
 
     def _drag_end(self, event):
-        # Save position to config
         try:
             from storage.config_manager import config_manager
             config_manager.set("pill_x", self._win.winfo_x())
