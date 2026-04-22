@@ -3,7 +3,15 @@ from storage.keyring_manager import keyring_manager
 import os
 
 def get_api_key():
-    return keyring_manager.get("api_key") or os.getenv("GROQ_API_KEY", "")
+    """Get API key from secure keyring. Fails fast if not configured."""
+    api_key = keyring_manager.get("api_key")
+    if not api_key:
+        raise ValueError(
+            "API key not found in keyring. Run: python setup_keys.py"
+        )
+    if not api_key.startswith("gsk_") or len(api_key) < 30:
+        raise ValueError("Invalid Groq API key format")
+    return api_key
 
 def get_hotkey():
     return config_manager.get("hotkey") or "ctrl+shift"

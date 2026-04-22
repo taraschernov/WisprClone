@@ -112,14 +112,28 @@ class HotkeyListener:
                     self._is_recording = True
                     try:
                         self.on_press_cb()
-                    except Exception:
-                        pass
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except Exception as e:
+                        logger.error(f"Hotkey press callback failed: {e}", exc_info=True)
+                        try:
+                            from app_platform.notifications import notify
+                            notify("YapClean", "Hotkey processing failed - check logs", "error")
+                        except Exception:
+                            pass
                 else:
                     self._is_recording = False
                     try:
                         self.on_release_cb()
-                    except Exception:
-                        pass
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except Exception as e:
+                        logger.error(f"Hotkey release callback failed: {e}", exc_info=True)
+                        try:
+                            from app_platform.notifications import notify
+                            notify("YapClean", "Hotkey processing failed - check logs", "error")
+                        except Exception:
+                            pass
         else:
             # Hold-to-talk: fire on_press_cb when all slots are pressed
             if self._all_slots_pressed() and not self._combo_active:
@@ -127,8 +141,15 @@ class HotkeyListener:
                 self._is_recording = True
                 try:
                     self.on_press_cb()
-                except Exception:
-                    pass
+                except (KeyboardInterrupt, SystemExit):
+                        raise
+                except Exception as e:
+                    logger.error(f"Hotkey press callback failed: {e}", exc_info=True)
+                    try:
+                        from app_platform.notifications import notify
+                        notify("YapClean", "Hotkey processing failed - check logs", "error")
+                    except Exception:
+                        pass
 
     def _on_release(self, key):
         if not self._running:
@@ -146,8 +167,15 @@ class HotkeyListener:
                     self._is_recording = False
                     try:
                         self.on_release_cb()
-                    except Exception:
-                        pass
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except Exception as e:
+                        logger.error(f"Hotkey release callback failed: {e}", exc_info=True)
+                        try:
+                            from app_platform.notifications import notify
+                            notify("YapClean", "Hotkey processing failed - check logs", "error")
+                        except Exception:
+                            pass
 
         self._pressed.discard(key)
 

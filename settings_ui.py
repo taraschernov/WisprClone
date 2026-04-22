@@ -8,50 +8,54 @@ from storage.keyring_manager import keyring_manager
 from i18n.translator import t, init_translator
 
 
-def _bind_paste(entry: ctk.CTkEntry) -> None:
-    """Fix Ctrl+V paste for masked CTkEntry fields (show='*') on Windows."""
-    def _paste(event=None):
+class PasswordEntry(ctk.CTkFrame):
+    def __init__(self, master, placeholder="", initial_value="", **kwargs):
+        super().__init__(master, fg_color="transparent", **kwargs)
+        self.columnconfigure(0, weight=1)
+        
+        self.is_visible = False
+        
+        self.entry = ctk.CTkEntry(self, placeholder_text=placeholder, show="*",
+                                  font=ctk.CTkFont(size=13))
+        self.entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        if initial_value:
+            self.entry.insert(0, initial_value)
+            
+        # Bind paste using public API of CTkEntry
+        self.entry.bind("<<Paste>>", self._on_paste)
+        self.entry.bind("<Control-v>", self._on_paste)
+        self.entry.bind("<Control-V>", self._on_paste)
+        
+        self.btn = ctk.CTkButton(self, text="👁", width=36, command=self._toggle,
+                                 fg_color="transparent", hover_color="#444",
+                                 font=ctk.CTkFont(size=14))
+        self.btn.grid(row=0, column=1)
+
+    def _on_paste(self, event=None):
         try:
-            text = entry.clipboard_get()
-            entry._entry.delete(0, "end")
-            entry._entry.insert(0, text.strip())
+            text = self.clipboard_get()
+            self.entry.delete(0, "end")
+            self.entry.insert(0, text.strip())
         except Exception:
             pass
         return "break"
-    entry._entry.bind("<<Paste>>", _paste)
-    entry._entry.bind("<Control-v>", _paste)
-    entry._entry.bind("<Control-V>", _paste)
+        
+    def _toggle(self):
+        self.is_visible = not self.is_visible
+        self.entry.configure(show="" if self.is_visible else "*")
+        self.btn.configure(text="🙈" if self.is_visible else "👁")
+        
+    def get(self):
+        return self.entry.get()
+        
+    def insert(self, idx, text):
+        self.entry.insert(idx, text)
 
-
-def _make_secret_row(parent, placeholder: str, initial_value: str = "") -> ctk.CTkEntry:
-    """
-    Create a password entry row with a show/hide toggle button.
-    Returns the CTkEntry widget.
-    """
-    row = ctk.CTkFrame(parent, fg_color="transparent")
+def _make_secret_row(parent, placeholder: str, initial_value: str = "") -> PasswordEntry:
+    """Create a password entry row with a show/hide toggle button."""
+    row = PasswordEntry(parent, placeholder=placeholder, initial_value=initial_value)
     row.pack(fill="x", padx=10, pady=5)
-    row.columnconfigure(0, weight=1)
-
-    entry = ctk.CTkEntry(row, placeholder_text=placeholder, show="*",
-                         font=ctk.CTkFont(size=13))
-    entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-    if initial_value:
-        entry.insert(0, initial_value)
-
-    _bind_paste(entry)
-
-    visible = [False]
-
-    def toggle():
-        visible[0] = not visible[0]
-        entry.configure(show="" if visible[0] else "*")
-        btn.configure(text="🙈" if visible[0] else "👁")
-
-    btn = ctk.CTkButton(row, text="👁", width=36, command=toggle,
-                        fg_color="transparent", hover_color="#444",
-                        font=ctk.CTkFont(size=14))
-    btn.grid(row=0, column=1)
-    return entry
+    return row
 
 PERSONAS = [
     "General User",
@@ -317,6 +321,14 @@ class SettingsApp(ctk.CTk):
         ctk.CTkOptionMenu(
             group_lang, variable=self.ui_language_var, values=["en", "ru"]
         ).pack(fill="x", padx=10, pady=5)
+
+        # Support Label
+        ctk.CTkLabel(
+            scroll,
+            text=t("settings.support"),
+            font=ctk.CTkFont(size=12, slant="italic"),
+            text_color="gray",
+        ).pack(pady=20)
 
     def _get_input_devices(self):
         """Query sounddevice for input devices; fallback to ['Default'] on error."""

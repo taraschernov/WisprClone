@@ -54,9 +54,12 @@ class App:
 
         self.pipeline = Pipeline(self.injector, self._app_awareness, self._persona_router, pill=self.pill)
         self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
+        self.hotkey_thread = None
+        self._reload_lock = threading.Lock()
         self.tray = TrayApp(self.on_exit)
         self.running = True
-        self.current_language = None
+        self.current_language = "Russian"
+        self._lang_lock = threading.Lock()
         self._observer = None
 
     def get_current_keyboard_language(self):
@@ -87,12 +90,13 @@ class App:
         dictation_lang = config_manager.get("dictation_language", "Russian")
         translate = config_manager.get("translate_to_layout", False)
 
-        if translate:
-            self.current_language = self.get_current_keyboard_language()
-            logger.info(f"Translate mode: detected layout → {self.current_language}")
-        else:
-            self.current_language = dictation_lang
-            logger.info(f"Dictation language: {self.current_language}")
+        with self._lang_lock:
+            if translate:
+                self.current_language = self.get_current_keyboard_language() or "Russian"
+                logger.info(f"Translate mode: detected layout → {self.current_language}")
+            else:
+                self.current_language = dictation_lang
+                logger.info(f"Dictation language: {self.current_language}")
             
         self.tray.set_recording(True)
         self.audio.start_recording()
@@ -109,7 +113,8 @@ class App:
         if self.pill:
             self.pill.set_state("transcribing")
         
-        target_lang = self.current_language
+        with self._lang_lock:
+            target_lang = self.current_language
         
         if audio_filepath:
             def process():
@@ -154,15 +159,41 @@ class App:
                 if new_val != config_manager.get(key):
                     config_manager.settings[key] = new_val
 
+            # Toggle pill overlay if show_pill_overlay changed
+            new_show_pill = new_settings.get("show_pill_overlay", True)
+            old_show_pill = config_manager.get("show_pill_overlay", True)
+            if new_show_pill != old_show_pill:
+                config_manager.settings["show_pill_overlay"] = new_show_pill
+                if new_show_pill and self.pill is None:
+                    try:
+                        from ui.pill_overlay import PillOverlay
+                        self.pill = PillOverlay()
+                        self.audio.amplitude_callback = self.pill.set_amplitude
+                        self.pipeline.pill = self.pill
+                        logger.info("PillOverlay started via config reload.")
+                    except Exception as e:
+                        logger.warning(f"PillOverlay failed to start: {e}")
+                elif not new_show_pill and self.pill is not None:
+                    try:
+                        self.pill.destroy()
+                    except Exception:
+                        pass
+                    self.pill = None
+                    self.audio.amplitude_callback = None
+                    self.pipeline.pill = None
+                    logger.info("PillOverlay stopped via config reload.")
+
             # Restart hotkey listener if hotkey changed
             new_hotkey = new_settings.get("hotkey")
             if new_hotkey and new_hotkey != config_manager.get("hotkey"):
                 config_manager.settings["hotkey"] = new_hotkey
-                self.hotkey.stop()
-                self.hotkey_thread.join()
-                self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
-                self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=True)
-                self.hotkey_thread.start()
+                with self._reload_lock:
+                    if hasattr(self, 'hotkey_thread') and self.hotkey_thread and self.hotkey_thread.is_alive():
+                        self.hotkey.stop()
+                        self.hotkey_thread.join(timeout=2)
+                    self.hotkey = HotkeyListener(self.on_hotkey_press, self.on_hotkey_release)
+                    self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=False)
+                    self.hotkey_thread.start()
         except Exception:
             pass
 
@@ -182,7 +213,7 @@ class App:
             run_onboarding()
 
         self.tray.start()
-        self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=True)
+        self.hotkey_thread = threading.Thread(target=self.hotkey.start, daemon=False)
         self.hotkey_thread.start()
         self.start_config_watcher()
         
@@ -209,7 +240,7 @@ if __name__ == "__main__":
 
     try:
         if "--settings" in sys.argv:
-            from settings_ui import open_settings
+            from ui.settings_webview import open_settings
             open_settings()
         else:
             app = App()

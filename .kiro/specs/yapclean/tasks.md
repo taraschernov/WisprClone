@@ -181,3 +181,23 @@
   - [x] 21.13 `tests/test_notion.py` — CP-6.3: `enable_notion=False` makes no HTTP requests
   - [x] 21.14 `tests/test_personas.py` — CP-4.1: all STT providers implement `transcribe(audio_path, language, prompt_hint)` interface
   - [x] 21.15 `tests/test_personas.py` — CP-4.2: all LLM providers implement `refine(text, persona, system_prompt)` interface
+
+
+## Phase 6: Code Review & Critical Fixes
+
+- [x] Priority 1: Security Fixes
+  - [x] 1.1 Fix API Key Exposure (config.py)
+  - [x] 1.2 Fix Clipboard Privacy Leak (clipboard_injector.py)
+  - [x] 1.3 Fix Private Field Access (settings_ui.py)
+
+- [x] Priority 2: Critical Logic Bugs
+  - [x] 2.1 Fix hotkey_thread AttributeError (main.py)
+  - [x] 2.2 Fix current_language Race Condition (main.py)
+  - [x] 2.3 Fix Silent Exception Handling (hotkey_listener.py)
+
+- [x] Priority 3: Resource Leaks & Best Practices
+  - [x] 3.1 Fix Daemon Threads (main.py)
+  - [x] 3.2 Fix Config Validation (config.py)
+  - [x] 3.3 Remove Dupe Imports (audio_manager.py)
+  - [x] 3.4 Fix Settings UI Closure Pattern (settings_ui.py)
+

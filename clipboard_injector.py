@@ -34,26 +34,29 @@ def _send_paste_pynput():
 
 class ClipboardInjector:
     def inject_text(self, text):
-        """Pastes text into the active window via clipboard."""
+        """Inject text into active window via clipboard."""
         if not text:
             return
-
+        
         logger.info("Preparing to inject text...")
-        old_clipboard = pyperclip.paste()
         try:
+            # Do NOT save old clipboard - privacy risk
             pyperclip.copy(text)
-            time.sleep(0.1)  # give clipboard time to settle
-
+            time.sleep(0.1)
+            
             if platform.system() == "Windows":
                 _send_paste_windows()
             else:
                 _send_paste_pynput()
-
+            
             time.sleep(0.15)
+            logger.info("Text injected successfully.")
+            
+            # Clear clipboard after a delay to prevent accidental reuse
+            # But do it only after sufficient delay
+            time.sleep(2)
+            pyperclip.copy("")  # Clear instead of restore
+            
         except Exception as e:
             logger.error(f"Error injecting text: {e}")
-        finally:
-            # Restore clipboard after a short delay
-            time.sleep(0.1)
-            pyperclip.copy(old_clipboard)
-            logger.info("Text injected and clipboard restored.")
+            raise

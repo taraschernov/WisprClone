@@ -213,3 +213,10 @@ makensis installer.nsi
 - Windows 10/11 (macOS and Linux support in progress)
 - Python 3.10+
 - Free [Groq API key](https://console.groq.com) for STT + LLM
+
+---
+
+## Support
+
+Questions? Issues? Feedback? Contact us at [founder@yapclean.tech](mailto:founder@yapclean.tech) or open an issue on GitHub.
+

@@ -1,0 +1,8 @@
+1:"$Sreact.fragment"
+2:I[55094,["/_next/static/chunks/17j~m~l.s1p_g.js","/_next/static/chunks/08uanywh65cjn.js","/_next/static/chunks/0nwy342fd.b7a.js","/_next/static/chunks/149_.9zy_turq.js"],"ThemeProvider"]
+3:I[55094,["/_next/static/chunks/17j~m~l.s1p_g.js","/_next/static/chunks/08uanywh65cjn.js","/_next/static/chunks/0nwy342fd.b7a.js","/_next/static/chunks/149_.9zy_turq.js"],"ThemeScope"]
+4:I[33147,["/_next/static/chunks/17j~m~l.s1p_g.js","/_next/static/chunks/08uanywh65cjn.js","/_next/static/chunks/0nwy342fd.b7a.js","/_next/static/chunks/149_.9zy_turq.js"],"SettingsWindow"]
+5:I[35305,["/_next/static/chunks/17j~m~l.s1p_g.js","/_next/static/chunks/08uanywh65cjn.js"],"OutletBoundary"]
+6:"$Sreact.suspense"
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"defaultTheme":"dark","children":["$","$L3",null,{"className":"h-screen overflow-hidden","children":["$","main",null,{"className":"relative h-screen w-full overflow-hidden bg-zinc-950 font-sans antialiased","children":[["$","div",null,{"className":"pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(63,63,70,0.25),transparent_60%)]"}],["$","div",null,{"className":"pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(39,39,42,0.4),transparent_70%)]"}],["$","div",null,{"className":"relative flex h-screen flex-col items-center justify-center","children":["$","$L4",null,{}]}]]}]}]}],[["$","script","script-0",{"src":"/_next/static/chunks/0nwy342fd.b7a.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/149_.9zy_turq.js","async":true}]],["$","$L5",null,{"children":["$","$6",null,{"name":"Next.MetadataOutlet","children":"$@7"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"QkLxn-N5uGOVB62MmdcHF"}
+7:null

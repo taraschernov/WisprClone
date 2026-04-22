@@ -138,9 +138,14 @@ class Pipeline:
                 llm_provider = self._registry.get_llm_provider()
                 try:
                     llm_output = llm_provider.refine(raw_text, persona, system_prompt)
-                    # Strip any XML/HTML tags the LLM might have added
                     llm_output = re.sub(r'<[^>]+>', '', llm_output).strip()
-                    formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
+
+                    # HARD GUARD: Если ответ более чем в 2.5 раза длиннее оригинала — это 100% галлюцинация или слив промпта
+                    if len(llm_output) > len(raw_text) * 2.5 and len(raw_text) > 10:
+                        logger.warning("LLM leak blocked by length ratio. Falling back to raw transcript.")
+                        formatted_text = raw_text
+                    else:
+                        formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
                 except Exception as llm_err:
                     logger.error(f"LLM failed: {llm_err}")
                     notify("YapClean", t("error.llm_failed"), "warning")

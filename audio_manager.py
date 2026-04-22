@@ -35,7 +35,6 @@ class AudioManager:
             self.audio_data.append(indata.copy())
             if self.amplitude_callback:
                 try:
-                    import numpy as np
                     rms = float(np.sqrt(np.mean(np.square(indata))))
                     self.amplitude_callback(rms)
                 except Exception:

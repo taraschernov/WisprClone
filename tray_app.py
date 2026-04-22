@@ -121,7 +121,7 @@ class TrayApp:
         if getattr(sys, "frozen", False):
             subprocess.Popen([sys.executable, "--settings"])
         else:
-            settings_script = os.path.join(os.path.dirname(__file__), "settings_ui.py")
+            settings_script = os.path.join(os.path.dirname(__file__), "ui", "settings_webview.py")
             subprocess.Popen([sys.executable, settings_script])
 
     def _on_exit(self, icon, item):
