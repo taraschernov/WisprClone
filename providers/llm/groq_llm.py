@@ -5,7 +5,7 @@ from storage.keyring_manager import keyring_manager
 from utils.logger import get_logger
 
 logger = get_logger("yapclean.llm.groq")
-LLM_MODEL = "llama-3.1-8b-instant"
+LLM_MODEL = "llama-3.3-70b-versatile"
 
 
 class GroqLLM(LLMProvider):

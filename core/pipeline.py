@@ -140,7 +140,12 @@ class Pipeline:
                     llm_output = llm_provider.refine(raw_text, persona, system_prompt)
                     # Strip any XML/HTML tags the LLM might have added
                     llm_output = re.sub(r'<[^>]+>', '', llm_output).strip()
-                    formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
+                    # If output is 3x longer than input — likely hallucination, use raw
+                    if len(llm_output) > len(raw_text) * 3:
+                        logger.warning(f"LLM output too long ({len(llm_output)} vs {len(raw_text)}), using raw transcript")
+                        formatted_text = raw_text
+                    else:
+                        formatted_text = self._refusal_detector.check(llm_output, fallback=raw_text)
                 except Exception as llm_err:
                     logger.error(f"LLM failed: {llm_err}")
                     notify("YapClean", t("error.llm_failed"), "warning")
