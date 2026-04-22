@@ -32,7 +32,7 @@ def get_notion_trigger_word():
 WHISPER_MODEL = "whisper-large-v3"
 
 # LLM Config
-LLM_MODEL = "llama-3.1-8b-instant" 
+LLM_MODEL = "llama-3.3-70b-versatile"
 
 DEFAULT_SYSTEM_PROMPT = """### Role
 You are an expert Linguistic Processor specializing in transforming raw speech-to-text (STT) transcripts into polished, professional, and highly readable content.

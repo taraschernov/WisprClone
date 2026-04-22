@@ -140,7 +140,6 @@ class Pipeline:
                 try:
                     llm_output = llm_provider.refine(raw_text, persona, system_prompt)
                     llm_output = re.sub(r'<[^>]+>', '', llm_output).strip()
-
                     # HARD GUARD: Если ответ более чем в 2.5 раза длиннее оригинала — это 100% галлюцинация или слив промпта
                     if len(llm_output) > len(raw_text) * 2.5 and len(raw_text) > 10:
                         logger.warning("LLM leak blocked by length ratio. Falling back to raw transcript.")
